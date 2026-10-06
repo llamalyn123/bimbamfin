@@ -1,0 +1,6 @@
+{
+  "name": "Bimbam",
+  "description": "Academic study companion and editorial workstation for coursework, notes, quizzes, deadlines, and campus events connected with Supabase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
