@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Logo } from './Logo';
 import { useApp } from '../context/AppContext';
 import { inferUniversity, UniversityAffiliation } from '../lib/supabase';
 
@@ -159,9 +160,7 @@ export const AuthModal: React.FC = () => {
         ) : (
           /* Sign In modal fallback */
           <div className="flex flex-col gap-4 text-center">
-            <div className="h-[96px] w-auto rounded-2xl bg-white border border-[#C9D1DB] flex items-center justify-center mx-auto shadow-xs overflow-hidden p-1">
-              <img src="https://xxlbvcwyicddkjbzbtvu.supabase.co/storage/v1/object/public/assets/Bim%20Bam.png" alt="Bimbam" className="h-[96px] w-auto object-contain" />
-            </div>
+            <Logo size="h-[96px] w-[96px] mx-auto" />
 
             <div className="flex flex-col gap-1.5">
               <span className="inline-block mx-auto px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 font-label-micro uppercase font-bold tracking-wider">

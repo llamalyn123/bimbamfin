@@ -1,4 +1,5 @@
 import React from 'react';
+import { Logo } from './Logo';
 import { useApp, ActiveScreen } from '../context/AppContext';
 
 export const Sidebar: React.FC = () => {
@@ -22,9 +23,7 @@ export const Sidebar: React.FC = () => {
           onClick={() => setActiveScreen('home')}
           className="h-16 flex items-center justify-center lg:justify-start px-3 lg:px-5 border-b border-[#C9D1DB] gap-3 cursor-pointer hover:bg-slate-50 transition-colors"
         >
-          <div className="h-[44px] lg:h-[52px] w-auto rounded-xl bg-[#F8FAFC] border border-[#C9D1DB] flex items-center justify-center shadow-xs overflow-hidden shrink-0">
-            <img src="https://xxlbvcwyicddkjbzbtvu.supabase.co/storage/v1/object/public/assets/Bim%20Bam.png" alt="Bimbam" className="h-[44px] lg:h-[52px] w-auto object-contain" />
-          </div>
+          <Logo size="h-[44px] w-[44px] lg:h-[52px] lg:w-[52px]" />
           <div className="hidden lg:flex flex-col">
             <span className="font-headline-sm text-headline-sm text-[#0E0E12] tracking-tight leading-none font-bold">
               Bimbam

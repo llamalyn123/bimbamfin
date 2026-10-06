@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Logo } from '../components/Logo';
 import { useApp } from '../context/AppContext';
 import { supabase, inferUniversity } from '../lib/supabase';
 import { SUPPORTED_LANGUAGES } from '../i18n/translations';
@@ -116,9 +117,7 @@ export const LoginScreen: React.FC = () => {
         
         {/* Brand Emblem & Welcome Header */}
         <div className="flex flex-col items-center text-center gap-4">
-          <div className="h-[105px] w-auto rounded-2xl bg-white border border-[#C9D1DB] flex items-center justify-center shadow-xs overflow-hidden p-1">
-            <img src="https://xxlbvcwyicddkjbzbtvu.supabase.co/storage/v1/object/public/assets/Bim%20Bam.png" alt="Bimbam" className="h-[105px] w-auto object-contain" />
-          </div>
+          <Logo size="h-[105px] w-[105px]" />
 
           <div className="flex flex-col items-center gap-1.5">
             <span className="px-3 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 font-label-micro text-[11px] font-bold uppercase tracking-wider">

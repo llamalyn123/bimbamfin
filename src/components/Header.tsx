@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Logo } from './Logo';
 import { useApp } from '../context/AppContext';
 import { SUPPORTED_LANGUAGES } from '../i18n/translations';
 
@@ -22,9 +23,7 @@ export const Header: React.FC = () => {
     <header className="fixed top-0 left-0 md:left-20 lg:left-64 right-0 h-16 bg-white/95 backdrop-blur-xl border-b border-[#C9D1DB] z-40 flex items-center justify-between px-4 sm:px-6 transition-colors">
       {/* Left title & context */}
       <div className="flex items-center gap-3">
-        <div className="h-[35px] w-auto rounded-lg bg-[#F8FAFC] border border-[#C9D1DB] flex items-center justify-center shadow-xs overflow-hidden shrink-0 md:hidden">
-          <img src="https://xxlbvcwyicddkjbzbtvu.supabase.co/storage/v1/object/public/assets/Bim%20Bam.png" alt="Bimbam" className="h-[35px] w-auto object-contain" />
-        </div>
+        <Logo size="h-[35px] w-[35px] md:hidden" />
         <span className="font-headline-sm text-sm sm:text-headline-sm text-[#0E0E12] tracking-tight font-bold">
           {t('core_heading', 'Bimbam')}
         </span>

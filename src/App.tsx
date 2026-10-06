@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Logo } from './components/Logo';
 import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -42,9 +43,7 @@ const MainLayout: React.FC = () => {
   if (isAuthChecking) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F4F7FB] text-[#0E0E12] transition-colors">
-        <div className="h-[105px] w-auto rounded-2xl bg-white border border-[#C9D1DB] flex items-center justify-center shadow-xs mb-5 overflow-hidden p-1">
-          <img src="https://xxlbvcwyicddkjbzbtvu.supabase.co/storage/v1/object/public/assets/Bim%20Bam.png" alt="Bimbam" className="h-[105px] w-auto object-contain" />
-        </div>
+        <Logo size="h-[105px] w-[105px] mb-5" />
         <div className="flex items-center gap-2 text-xs font-mono text-[#64748B]">
           <span className="w-2 h-2 rounded-full bg-[#10B981] animate-ping"></span>
           <span>Verifying Academic Session...</span>
