@@ -299,3 +299,59 @@ html.dark .text-emerald-700,
 html.dark .text-emerald-800 {
   color: #34D399 !important;
 }
+
+/* ---- Dark mode: colours used by the rebuilt screens ---- */
+html.dark .text-\[\#1E293B\],
+html.dark .text-\[\#334155\] {
+  color: #E4E4E7 !important;
+}
+html.dark .text-\[\#475569\],
+html.dark .text-\[\#94A3B8\] {
+  color: #A1A1AA !important;
+}
+html.dark .text-\[\#B47B16\],
+html.dark .text-\[\#78350F\] {
+  color: #D4A94F !important;
+}
+html.dark .text-\[\#1D4ED8\] {
+  color: #8DB4FF !important;
+}
+html.dark .text-\[\#6D28D9\],
+html.dark .text-\[\#BE185D\] {
+  color: #E9D5FF !important;
+}
+html.dark .text-red-700,
+html.dark .text-red-800,
+html.dark .text-red-900 {
+  color: #FCA5A5 !important;
+}
+html.dark .text-emerald-700,
+html.dark .text-emerald-800 {
+  color: #6EE7B7 !important;
+}
+html.dark .bg-\[\#FFFDF7\],
+html.dark .bg-\[\#FFFDF5\] {
+  background-color: rgba(212, 169, 79, 0.08) !important;
+}
+html.dark .bg-\[\#FFF0F7\] {
+  background-color: rgba(255, 79, 163, 0.10) !important;
+}
+html.dark .bg-\[\#F3F0FF\] {
+  background-color: rgba(124, 92, 255, 0.16) !important;
+}
+html.dark .bg-red-50 {
+  background-color: rgba(255, 107, 107, 0.10) !important;
+}
+html.dark .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.10) !important;
+}
+html.dark .border-\[\#E2E8F0\],
+html.dark .border-\[\#E9D5FF\],
+html.dark .border-\[\#FBCFE8\],
+html.dark .border-\[\#FDE68A\] {
+  border-color: #282836 !important;
+}
+html.dark input,
+html.dark textarea {
+  color: #F4F4F6;
+}
