@@ -10,6 +10,8 @@ export const Header: React.FC = () => {
     setIsAuthModalOpen,
     currentUser,
     resolvedTheme,
+    themeMode,
+    setThemeMode,
     language,
     setLanguage,
     t
@@ -41,15 +43,21 @@ export const Header: React.FC = () => {
           </span>
         </button>
 
-        {/* Dynamic Theme Mode Tag */}
-        <div className="hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#F8FAFC] border border-[#C9D1DB] text-[11px] text-[#64748B]">
+        {/* Theme switch: Light → Dark → Auto (follows device) */}
+        <button
+          type="button"
+          onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : themeMode === 'dark' ? 'system' : 'light')}
+          title="Switch theme"
+          aria-label={`Theme: ${themeMode === 'system' ? 'auto' : themeMode}. Click to switch.`}
+          className="hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#F8FAFC] border border-[#C9D1DB] text-[11px] text-[#64748B] hover:bg-slate-100 transition-colors cursor-pointer"
+        >
           <span className="material-symbols-outlined text-[14px] text-[#D4A94F]">
-            {resolvedTheme === 'dark' ? 'dark_mode' : 'light_mode'}
+            {themeMode === 'system' ? 'contrast' : resolvedTheme === 'dark' ? 'dark_mode' : 'light_mode'}
           </span>
-          <span className="font-label-micro text-label-micro uppercase font-medium">
-            {resolvedTheme === 'dark' ? t('theme_dark', 'Nocturne Dark') : t('theme_light', 'Editorial Light')}
+          <span className="font-label-micro text-label-micro font-medium">
+            {themeMode === 'system' ? 'Auto' : themeMode === 'dark' ? 'Dark' : 'Light'}
           </span>
-        </div>
+        </button>
 
         {/* University Affiliation Badge */}
         {currentUser?.university && (

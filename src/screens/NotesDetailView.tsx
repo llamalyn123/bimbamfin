@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { invokeEdge, EdgeError } from '../lib/edge';
+import { GoDeeper } from '../components/GoDeeper';
 
 type Point = { text: string; text_en?: string; source_ids?: unknown[]; location?: string };
 type Concept = {
@@ -133,7 +134,7 @@ export const NotesDetailView: React.FC = () => {
           className="flex items-center gap-1.5 text-body-sm font-semibold text-[#0E0E12] hover:text-[#B47B16] transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-          <span>{t('notes_back_btn', 'Back to courses')}</span>
+          <span>Back to courses</span>
         </button>
         <span className="text-xs text-[#64748B] font-medium">
           {course} · Week {week}
@@ -257,6 +258,9 @@ export const NotesDetailView: React.FC = () => {
                     </ul>
                   )}
                   {!c.points && c.source && <span className="text-[10px] text-[#64748B]">{c.source}</span>}
+                  {noteRow?.id && c.id && (
+                    <GoDeeper noteId={noteRow.id} conceptId={c.id} language={language} subtitles={subtitles} />
+                  )}
                 </article>
               ))}
 
