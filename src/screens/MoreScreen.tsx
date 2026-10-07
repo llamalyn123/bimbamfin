@@ -435,7 +435,7 @@ export const MoreScreen: React.FC = () => {
                     >
                       <Globe className="w-4 h-4 mb-1 text-indigo-600" />
                       <span className="font-semibold">Auto</span>
-                      <span className="text-[10px] text-gray-400 mt-0.5">Follows your device</span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">Dark 7pm–7am</span>
                     </button>
                   </div>
 

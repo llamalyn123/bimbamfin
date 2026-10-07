@@ -135,9 +135,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return false;
   });
 
+  // Auto = dark from 7pm to 7am (device clock), or whenever the device itself is in dark mode
+  const isNightNow = () => {
+    const h = new Date().getHours();
+    return h >= 19 || h < 7;
+  };
+  const [isNight, setIsNight] = useState<boolean>(isNightNow);
+  useEffect(() => {
+    const tick = () => setIsNight(isNightNow());
+    const id = window.setInterval(tick, 60_000);
+    document.addEventListener('visibilitychange', tick);
+    window.addEventListener('focus', tick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', tick);
+      window.removeEventListener('focus', tick);
+    };
+  }, []);
+
   // Calculate resolved theme
   const resolvedTheme: 'light' | 'dark' =
-    themeMode === 'system' ? (systemPrefersDark ? 'dark' : 'light') : themeMode;
+    themeMode === 'system' ? (systemPrefersDark || isNight ? 'dark' : 'light') : themeMode;
 
   // Listen for system theme changes live
   useEffect(() => {

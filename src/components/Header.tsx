@@ -43,7 +43,7 @@ export const Header: React.FC = () => {
           </span>
         </button>
 
-        {/* Theme switch: Light → Dark → Auto (follows device) */}
+        {/* Theme switch: Light → Dark → Auto (dark 7pm–7am or when device is dark) */}
         <button
           type="button"
           onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : themeMode === 'dark' ? 'system' : 'light')}
