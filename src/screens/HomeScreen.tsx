@@ -38,12 +38,69 @@ export const HomeScreen: React.FC = () => {
 
   const [eventCategoryFilter, setEventCategoryFilter] = useState<string>('All');
 
-  // Due soon: open deadlines from the last day onwards, soonest first
-  const isDone = (status: string) => ['completed', 'cleared', 'done'].includes(String(status).toLowerCase());
-  const pendingDeadlines = deadlines
-    .filter((d) => !isDone(d.status) && new Date(d.due_date).getTime() > Date.now() - 864e5)
-    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+  const isDone = (status: string) => ['completed', 'cleared', 'done', 'cancelled'].includes(String(status).toLowerCase());
 
+  // ---------- Exam countdown: exams in the next 6 weeks ----------
+  const isExam = (d: { type?: string; title?: string }) =>
+    /exam/i.test(String(d.type)) || /\b(final exam|finals|mid-?terms?|examination|exam)\b/i.test(String(d.title));
+  const examSoon = deadlines
+    .filter((d) => !isDone(d.status) && isExam(d))
+    .filter((d) => {
+      const t = new Date(d.due_date).getTime();
+      return t > Date.now() && t < Date.now() + 42 * 864e5;
+    })
+    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+  const daysUntil = (iso: string) => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const d = new Date(iso);
+    d.setHours(0, 0, 0, 0);
+    return Math.round((d.getTime() - start.getTime()) / 864e5);
+  };
+
+  // ---------- Due soon: explicit deadlines only ----------
+  // Submissions, presentations, quizzes + key events you added (hackathons, auditions,
+  // competitions, performances) + registration deadlines. Classes/lectures and weekly
+  // CCA sessions live in the calendar, never here. Exams go in the countdown above.
+  const KEY_EVENT = /\b(hackathon|audition|try-?outs?|competition|case comp|pitch|showcase|performance|recital|concert|interview|submission|deadline)\b/i;
+  type DueItem = { key: string; kind: 'deadline' | 'event' | 'register'; title: string; tag: string; when: string; badge: string; onOpen: () => void; sub: string };
+  const dueSoon: DueItem[] = [
+    ...deadlines
+      .filter((d) => !isDone(d.status) && !(examSoon.length && isExam(d)))
+      .filter((d) => new Date(d.due_date).getTime() > Date.now() - 864e5)
+      .map((d) => ({
+        key: `d-${d.id}`,
+        kind: 'deadline' as const,
+        title: d.title,
+        tag: d.course,
+        when: d.due_date,
+        badge: String(d.type || 'Due'),
+        sub: sourceLabel(d.source),
+        onOpen: () => setActiveScreen('matrix')
+      })),
+    ...events
+      .filter((e) => e.created_by === currentUser?.id || userEventInterests[e.id] || reminders[e.id])
+      .flatMap((e) => {
+        const out: DueItem[] = [];
+        if (e.registration_deadline && !userEventInterests[e.id] && new Date(e.registration_deadline).getTime() > Date.now()) {
+          out.push({ key: `r-${e.id}`, kind: 'register', title: `Register: ${e.title}`, tag: 'Event', when: e.registration_deadline, badge: 'Register', sub: e.location || 'Event', onOpen: () => setActiveScreen('events') });
+        }
+        const text = `${e.title} ${(e.interest_tags || []).join(' ')} ${e.description || ''}`;
+        if (KEY_EVENT.test(text) && new Date(e.event_date).getTime() > Date.now()) {
+          out.push({ key: `e-${e.id}`, kind: 'event', title: e.title, tag: 'Event', when: e.event_date, badge: (text.match(KEY_EVENT)?.[1] || 'Event'), sub: e.location || 'Event', onOpen: () => setActiveScreen('events') });
+        }
+        return out;
+      })
+  ].sort((a, b) => new Date(a.when).getTime() - new Date(b.when).getTime());
+
+  const relDue = (iso: string) => {
+    const h = (new Date(iso).getTime() - Date.now()) / 36e5;
+    if (h < 0) return { text: 'Overdue', cls: 'bg-[#3A1620] text-[#FF6B6B]' };
+    if (h < 24) return { text: h < 1 ? 'Within the hour' : `In ${Math.round(h)} h`, cls: 'bg-[#3A1620] text-[#FF6B6B]' };
+    const d = daysUntil(iso);
+    if (d <= 3) return { text: d === 1 ? 'Tomorrow' : `In ${d} days`, cls: 'bg-[#3A2A10] text-[#F2A93B]' };
+    return { text: `In ${d} days`, cls: 'bg-[#F1F5F9] text-[#475569]' };
+  };
   // Real progress from the get_progress database function
   type Progress = {
     week_streak: number;
@@ -84,11 +141,19 @@ export const HomeScreen: React.FC = () => {
   })();
   const fmtT = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
-  // Filter events
-  const filteredEvents = events.filter((e) => {
-    if (eventCategoryFilter === 'All') return true;
-    return e.category?.toLowerCase() === eventCategoryFilter.toLowerCase();
-  });
+  // "My events": only things this student added or saved, upcoming, soonest first.
+  // Anything with an open registration deadline in the next 7 days goes first.
+  const filteredEvents = events
+    .filter(
+      (e) =>
+        (e.created_by === currentUser?.id || userEventInterests[e.id] || reminders[e.id]) &&
+        new Date(e.event_date).getTime() > Date.now() - 3 * 36e5
+    )
+    .sort((a, b) => {
+      const urgent = (e: typeof a) =>
+        e.registration_deadline && !userEventInterests[e.id] && new Date(e.registration_deadline).getTime() - Date.now() < 7 * 864e5 ? 0 : 1;
+      return urgent(a) - urgent(b) || new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
+    });
 
   // Greeting time slot calculation based on student's local device time
   const [timeSlot, setTimeSlot] = useState<GreetingTimeSlot>(() => getGreetingTimeSlot());
@@ -323,7 +388,42 @@ export const HomeScreen: React.FC = () => {
               </section>
             )}
 
-            {/* Due Soon List Module */}
+            {/* Exam season countdown */}
+            {examSoon.length > 0 && (
+              <section className="flex flex-col gap-3 bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs" aria-label="Exam countdown">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-headline-sm text-headline-sm text-[#0E0E12] font-bold">Exam countdown</span>
+                  <span className="text-xs text-[#64748B]">{examSoon.length} in the next 6 weeks</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col items-center justify-center w-20 h-20 rounded-2xl bg-[#3A1620] text-[#FF6B6B] shrink-0">
+                    <span className="text-3xl font-bold leading-none">{Math.max(0, daysUntil(examSoon[0].due_date))}</span>
+                    <span className="text-[11px] font-semibold">{daysUntil(examSoon[0].due_date) === 1 ? 'day' : 'days'}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-[#64748B]">Next up</p>
+                    <p className="font-semibold text-[#0E0E12] truncate">{examSoon[0].title}</p>
+                    <p className="text-xs text-[#64748B]">
+                      {examSoon[0].course} · {new Date(examSoon[0].due_date).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+                {examSoon.length > 1 && (
+                  <ul className="flex flex-col gap-1 border-t border-[#E2E8F0] pt-2">
+                    {examSoon.slice(1, 5).map((x) => (
+                      <li key={x.id} className="flex items-center justify-between text-sm gap-2">
+                        <span className="truncate text-[#1E293B]">
+                          <span className="font-semibold">{x.course}</span> · {x.title}
+                        </span>
+                        <span className="text-xs text-[#64748B] shrink-0">in {daysUntil(x.due_date)} days</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
+
+            {/* Due soon: explicit deadlines + key events only (classes live in the calendar) */}
             <section className="flex flex-col bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -331,7 +431,7 @@ export const HomeScreen: React.FC = () => {
                     {t('home_due_soon', 'Due soon')}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-[#F1F5F9] text-[#475569] font-label-tabular text-label-micro font-semibold border border-[#E2E8F0]">
-                    {pendingDeadlines.length}
+                    {dueSoon.length}
                   </span>
                 </div>
                 <button
@@ -339,58 +439,48 @@ export const HomeScreen: React.FC = () => {
                   onClick={() => setActiveScreen('matrix')}
                   className="font-label-tabular text-label-tabular text-[#B45309] hover:underline flex items-center gap-1 font-semibold cursor-pointer"
                 >
-                  {t('home_view_all_events', 'View all')}
+                  View all deadlines
                   <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                 </button>
               </div>
 
               <div className="flex flex-col divide-y divide-[#E2E8F0]">
-                {pendingDeadlines.length === 0 ? (
+                {dueSoon.length === 0 ? (
                   <div className="py-6 text-center text-xs text-[#64748B] italic">
                     {t('home_all_caught_up', 'All caught up! No pending deadlines.')}
                   </div>
                 ) : (
-                  pendingDeadlines.slice(0, 4).map((item) => (
-                    <div
-                      key={item.id}
-                      onClick={() => toggleDeadline(item.id)}
-                      className="group flex items-center justify-between py-3 hover:bg-[#F8FAFC] px-1 rounded-lg transition-colors cursor-pointer"
-                      title="Click to toggle status"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {item.type === 'RSVP' ? (
-                          <div className="w-7 h-7 rounded-lg bg-[#EDE9FE] text-[#7C3AED] flex items-center justify-center shrink-0 border border-[#DDD6FE]">
-                            <span className="material-symbols-outlined text-[16px]">confirmation_number</span>
+                  dueSoon.slice(0, 5).map((item) => {
+                    const rel = relDue(item.when);
+                    return (
+                      <button
+                        type="button"
+                        key={item.key}
+                        onClick={item.onOpen}
+                        className="group w-full text-left flex items-center justify-between py-3 hover:bg-[#F8FAFC] px-1 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="material-symbols-outlined text-[18px] text-[#B45309] shrink-0" aria-hidden="true">
+                            {item.kind === 'deadline' ? 'flag' : item.kind === 'register' ? 'how_to_reg' : 'celebration'}
+                          </span>
+                          <div className="px-2 py-0.5 rounded bg-[#FEF3C7] border border-[#FDE68A] font-label-tabular text-label-micro text-[#B45309] font-bold shrink-0 max-w-[110px] truncate">
+                            {item.tag}
                           </div>
-                        ) : (
-                          <span className="w-1.5 h-8 rounded-full bg-[#D97706] shrink-0"></span>
-                        )}
-
-                        <div className="px-2 py-0.5 rounded bg-[#FEF3C7] border border-[#FDE68A] font-label-tabular text-label-micro text-[#B45309] font-bold shrink-0">
-                          {item.course}
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-body-md text-body-md text-[#0E0E12] font-semibold truncate">{item.title}</span>
+                            <span className="font-label-tabular text-label-micro text-[#64748B]">
+                              {item.sub} •{' '}
+                              {new Date(item.when).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                            </span>
+                          </div>
                         </div>
-
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-body-md text-body-md text-[#0E0E12] font-semibold truncate group-hover:text-[#4F46E5] transition-colors">
-                            {item.title}
-                          </span>
-                          <span className="font-label-tabular text-label-micro text-[#64748B]">
-                            {sourceLabel(item.source)} •{' '}
-                            {new Date(item.due_date).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                          </span>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span className={`px-2.5 py-0.5 rounded-full font-label-tabular text-label-micro font-bold ${rel.cls}`}>{rel.text}</span>
+                          <span className="material-symbols-outlined text-[18px] text-[#94A3B8] group-hover:translate-x-1 transition-transform">chevron_right</span>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span className="px-2.5 py-0.5 rounded-full bg-[#FEF3C7] text-[#B45309] font-label-tabular text-label-micro font-bold uppercase border border-[#FDE68A]">
-                          {item.type}
-                        </span>
-                        <span className="material-symbols-outlined text-[18px] text-[#94A3B8] group-hover:translate-x-1 transition-transform">
-                          chevron_right
-                        </span>
-                      </div>
-                    </div>
-                  ))
+                      </button>
+                    );
+                  })
                 )}
               </div>
             </section>
@@ -434,10 +524,10 @@ export const HomeScreen: React.FC = () => {
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <span className="font-headline-sm text-headline-sm text-[#0E0E12] font-bold tracking-tight">
-                  {t('events_header_title', 'Live & Upcoming Events')}
+                  Your upcoming events
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-[#EDE9FE] text-[#7C3AED] border border-[#DDD6FE] font-label-tabular text-label-micro font-bold">
-                  {events.length}
+                  {filteredEvents.length}
                 </span>
               </div>
               <button
@@ -445,10 +535,22 @@ export const HomeScreen: React.FC = () => {
                 onClick={() => setActiveScreen('events')}
                 className="font-label-tabular text-label-tabular text-[#64748B] hover:text-[#0E0E12] flex items-center gap-0.5 font-medium cursor-pointer"
               >
-                {t('events_cat_all', 'All Events')}
+                See all
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </button>
             </div>
+
+            {filteredEvents.length === 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveScreen('events')}
+                className="rounded-2xl border border-dashed border-[#C9D1DB] p-5 text-left text-sm text-[#64748B] hover:border-[#FF4FA3]"
+              >
+                <span className="font-semibold text-[#0E0E12] block">No events yet</span>
+                Snap a poster, paste an email or forward from Telegram. Bimbam tracks the date, registration deadline and
+                reminders.
+              </button>
+            )}
 
             {/* Event Cards */}
             {filteredEvents.slice(0, 3).map((ev) => {
@@ -462,7 +564,11 @@ export const HomeScreen: React.FC = () => {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="inline-block transform -rotate-1 rounded-full bg-[#FEE2E2] text-[#DC2626] border border-[#FECACA] font-headline-sm text-label-micro uppercase tracking-wider px-3 py-0.5 font-bold shadow-2xs">
-                      {ev.category || 'EVENT'}
+                      {ev.registration_deadline && !isRegistered && new Date(ev.registration_deadline).getTime() > Date.now()
+                        ? `Register by ${new Date(ev.registration_deadline).toLocaleDateString([], { day: 'numeric', month: 'short' })}`
+                        : ev.source === 'booking'
+                        ? 'Booking'
+                        : new Date(ev.event_date).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}
                     </span>
                     {ev.attendees_count ? (
                       <div className="flex items-center gap-1 text-[#64748B] font-label-tabular text-label-micro font-medium">

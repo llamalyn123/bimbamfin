@@ -127,13 +127,17 @@ export const EventsScreen: React.FC = () => {
     }
   };
 
-  // Upcoming only, soonest first
+  // My events only (added by me, or saved/reminded), upcoming, soonest first
   const upcoming = useMemo(
     () =>
       events
-        .filter((e) => new Date(e.event_date).getTime() > Date.now() - 3 * 36e5)
+        .filter(
+          (e) =>
+            (e.created_by === currentUser?.id || userEventInterests[e.id] || reminders[e.id]) &&
+            new Date(e.event_date).getTime() > Date.now() - 3 * 36e5
+        )
         .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime()),
-    [events]
+    [events, currentUser?.id, userEventInterests, reminders]
   );
   const tags = ['All', ...Array.from(new Set(upcoming.flatMap((e) => e.interest_tags || []))).sort()];
   const shown = tag === 'All' ? upcoming : upcoming.filter((e) => (e.interest_tags || []).includes(tag));
@@ -212,9 +216,9 @@ export const EventsScreen: React.FC = () => {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-headline-lg text-2xl sm:text-3xl text-[#0E0E12] tracking-tight font-bold">
-            {t('events_header_title', 'Events')}
+            My events
           </h1>
-          <p className="font-body-md text-sm text-[#64748B]">Talks, workshops and things to register for.</p>
+          <p className="font-body-md text-sm text-[#64748B]">Snap it, forward it, done. Bimbam tracks dates, registration deadlines and reminders.</p>
         </div>
         <button
           type="button"

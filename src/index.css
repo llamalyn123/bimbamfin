@@ -396,3 +396,16 @@ html.dark .home-toggle {
 html.dark .home-toggle .bg-white {
   background-color: #2E2E3A !important;
 }
+
+/* Calendar chips in dark mode */
+html.dark .bg-purple-50 { background-color: rgba(124, 92, 255, 0.16) !important; }
+html.dark .bg-sky-50 { background-color: rgba(56, 189, 248, 0.14) !important; }
+html.dark .text-purple-800 { color: #C4B5FD !important; }
+html.dark .text-sky-800 { color: #7DD3FC !important; }
+html.dark .text-amber-800,
+html.dark .text-amber-900,
+html.dark .text-amber-700 { color: #F2C66D !important; }
+html.dark .border-purple-200,
+html.dark .border-sky-200,
+html.dark .border-amber-200,
+html.dark .border-slate-200 { border-color: #33334A !important; }

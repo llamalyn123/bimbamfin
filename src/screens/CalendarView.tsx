@@ -32,6 +32,9 @@ export const CalendarView: React.FC = () => {
   const [viewMonth, setViewMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedKey, setSelectedKey] = useState<string>(todayKey);
   const [filterType, setFilterType] = useState<'all' | 'deadlines' | 'events'>('all');
+  // Separate the timetable (classes, CCA sessions) from what's due
+  const [calView, setCalView] = useState<'all' | 'due' | 'timetable'>('all');
+  const showChip = (kind: string) => calView === 'all' || (calView === 'timetable' ? kind === 'class' : kind !== 'class');
 
   // Real deadlines + events grouped by local calendar day
   const itemsByDay = useMemo(() => {
@@ -66,7 +69,7 @@ export const CalendarView: React.FC = () => {
       add(d, {
         id: `e-${ev.id}`,
         category: 'Event',
-        categoryBadge: 'Event',
+        categoryBadge: ev.source === 'booking' ? 'Booking' : 'Event',
         time: fmtTime(d),
         courseOrHost: ev.source || '',
         title: ev.title,
@@ -121,7 +124,20 @@ export const CalendarView: React.FC = () => {
         hasDeadline: dueItems.length > 0,
         hasEvent: eventItems.length > 0,
         label: dueItems.length > 1 ? `${dueItems.length} due` : dueItems[0]?.title,
-        eventLabel: eventItems[0]?.title
+        eventLabel: eventItems[0]?.title,
+        // Compact, consistent chips: deadlines first, then by time
+        chips: [...items]
+          .sort((a, b) => Number(b.category === 'Assignment' || b.category === 'Quiz') - Number(a.category === 'Assignment' || a.category === 'Quiz') || a.dateMs - b.dateMs)
+          .map((x) => {
+            const code = (x.courseOrHost || '').split(/\s+/)[0];
+            const shortTime = new Date(x.dateMs).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(':00', '').replace(' ', '').toLowerCase();
+            if (x.category === 'Class') return { kind: 'class', icon: 'school', text: `${shortTime} ${code || x.title}`, full: `${x.time} · ${x.title}${x.subtitle ? ` · ${x.subtitle}` : ''}` };
+            if (x.category === 'Event') {
+              const booking = x.categoryBadge === 'Booking';
+              return { kind: booking ? 'booking' : 'event', icon: booking ? 'meeting_room' : 'celebration', text: `${shortTime} ${x.title.replace(/^Booking:\s*/, '')}`, full: `${x.time} · ${x.title}${x.subtitle ? ` · ${x.subtitle}` : ''}` };
+            }
+            return { kind: 'due', icon: 'flag', text: `Due ${code || x.title}`, full: `Due ${x.time} · ${x.title}${code ? ` (${x.courseOrHost})` : ''}` };
+          })
       };
     });
   }, [viewMonth, itemsByDay, todayKey]);
@@ -237,6 +253,28 @@ export const CalendarView: React.FC = () => {
             ))}
           </div>
 
+          {/* View: everything / what's due / timetable */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-[#CBD5E1] w-fit home-toggle" role="tablist" aria-label="Calendar view">
+            {([
+              ['all', 'All'],
+              ['due', 'Due & events'],
+              ['timetable', 'Timetable']
+            ] as const).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={calView === k}
+                onClick={() => setCalView(k)}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                  calView === k ? 'bg-white text-[#0E0E12] shadow-sm' : 'text-[#64748B] hover:text-[#0E0E12]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* Calendar Grid Cells */}
           <div className="grid grid-cols-7 gap-1 bg-[#F8FAFC] rounded-xl p-1">
             {calendarCells.map((cell, idx) => {
@@ -281,17 +319,30 @@ export const CalendarView: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Badges inside date cell */}
-                  <div className="flex flex-col gap-1 mt-1">
-                    {cell.hasDeadline && (
-                      <div className="px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 font-label-micro text-label-micro truncate font-semibold">
-                        {cell.label || 'Deadline'}
+                  {/* Chips: icon + short label, same format every day. Full text on hover; tap the day for details. */}
+                  <div className="flex flex-col gap-0.5 mt-1 min-w-0">
+                    {cell.chips.filter((c) => showChip(c.kind)).slice(0, 3).map((c, i) => (
+                      <div
+                        key={i}
+                        title={c.full}
+                        className={`flex items-center gap-0.5 px-1 py-0.5 rounded text-[10px] leading-tight font-semibold truncate border ${
+                          c.kind === 'due'
+                            ? 'bg-amber-50 border-amber-200 text-amber-800'
+                            : c.kind === 'class'
+                            ? 'bg-slate-50 border-slate-200 text-slate-700'
+                            : c.kind === 'booking'
+                            ? 'bg-sky-50 border-sky-200 text-sky-800'
+                            : 'bg-purple-50 border-purple-200 text-purple-800'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[11px] shrink-0" aria-hidden="true">{c.icon}</span>
+                        <span className="truncate">{c.text}</span>
                       </div>
-                    )}
-                    {cell.hasEvent && (
-                      <div className="px-1 py-0.5 rounded bg-purple-50 border border-purple-200 text-purple-800 font-label-micro text-label-micro truncate font-semibold">
-                        {cell.eventLabel || 'Event'}
-                      </div>
+                    ))}
+                    {cell.chips.filter((c) => showChip(c.kind)).length > 3 && (
+                      <span className="text-[10px] text-[#64748B] font-semibold px-1">
+                        +{cell.chips.filter((c) => showChip(c.kind)).length - 3} more
+                      </span>
                     )}
                   </div>
                 </div>
@@ -301,15 +352,20 @@ export const CalendarView: React.FC = () => {
 
           {/* Calendar Legend */}
           <div className="flex flex-wrap items-center justify-between gap-4 pt-1 mt-1 text-xs text-[#64748B]">
-            <div className="flex flex-wrap items-center gap-5">
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-xs bg-amber-500"></span>
-                <span className="font-label-tabular text-label-tabular">Deadlines & Quizzes</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-xs bg-purple-600"></span>
-                <span className="font-label-tabular text-label-tabular">Campus & Career Events</span>
-              </div>
+            <div className="flex flex-wrap items-center gap-4">
+              {[
+                ['flag', 'Due', 'bg-amber-50 border-amber-200 text-amber-800'],
+                ['school', 'Class / CCA', 'bg-slate-50 border-slate-200 text-slate-700'],
+                ['celebration', 'Event', 'bg-purple-50 border-purple-200 text-purple-800'],
+                ['meeting_room', 'Booking', 'bg-sky-50 border-sky-200 text-sky-800']
+              ].map(([icon, label, cls]) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded border flex items-center justify-center ${cls}`}>
+                    <span className="material-symbols-outlined text-[12px]" aria-hidden="true">{icon}</span>
+                  </span>
+                  <span className="font-label-tabular text-label-tabular">{label}</span>
+                </div>
+              ))}
               <div className="flex items-center gap-1.5">
                 <span className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center text-white font-label-micro text-[10px] font-bold">
                   {today.getDate()}

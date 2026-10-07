@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 
 type QConcept = { id: string; note_id?: string; heading?: string };
@@ -16,6 +17,41 @@ type Question = {
 };
 
 const weekOf = (conceptId: string) => conceptId.match(/^W(\d+)/)?.[1];
+
+const LINES = {
+  perfect: [
+    'Flawless. Your future self says thanks.',
+    "Locked in. This week's material is yours.",
+    'Clean sweep. Go take a real break.',
+    'Every answer right. That’s what showing up looks like.',
+    'Full marks. Exam-you is going to be calm about this one.'
+  ],
+  good: [
+    "Solid. One quick look at the misses and you've got it.",
+    'Nearly there. The ones below are your shortcut.',
+    'Strong run. Fix the gaps now while they’re fresh.',
+    'Good work. A two-minute review closes this out.'
+  ],
+  tough: [
+    'Good that it showed up now, not in the exam.',
+    "Every miss below is something you'll remember next time.",
+    'Tough round. That’s exactly what quizzes are for.',
+    'Now you know where to look. That’s progress.'
+  ]
+};
+
+const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+
+/** Extra line based on the time of day (device time). */
+const timeLine = () => {
+  const h = new Date().getHours();
+  if (h >= 22 || h < 5) return 'Late-night quiz done. Sleep is what locks it in.';
+  if (h < 10) return 'Strong start to the day.';
+  if (h >= 12 && h < 14) return 'Nice use of a lunch break.';
+  return null;
+};
+
+type ProgressLite = { week_streak: number; quizzes_this_week: number; best_week_streak: number };
 
 export const QuizScreen: React.FC = () => {
   const {
@@ -41,6 +77,33 @@ export const QuizScreen: React.FC = () => {
     setPicked({});
     setFinished(false);
   }, [quiz.id]);
+
+  const [progress, setProgress] = useState<ProgressLite | null>(null);
+
+  // Message is chosen once per finished quiz, so it doesn't change on re-render
+  const message = useMemo(() => {
+    if (!finished || !questions.length) return null;
+    const correct = questions.filter((qq, i) => picked[i] === qq.correct_index).length;
+    const ratio = correct / questions.length;
+    const tier = ratio === 1 ? 'perfect' : ratio >= 0.6 ? 'good' : 'tough';
+    const nailed = new Map<string, string>();
+    const revisit = new Map<string, { id: string; heading: string }>();
+    questions.forEach((qq, i) => {
+      for (const c of qq.concepts ?? []) {
+        if (!c.heading) continue;
+        if (picked[i] === qq.correct_index) nailed.set(c.heading, c.heading);
+        else revisit.set(c.heading, { id: c.id, heading: c.heading });
+      }
+    });
+    for (const k of revisit.keys()) nailed.delete(k); // missed anywhere = revisit
+    return {
+      line: pick(LINES[tier]),
+      time: timeLine(),
+      nailed: [...nailed.values()].slice(0, 3),
+      revisit: [...revisit.values()].slice(0, 3)
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished, quiz.id]);
 
   if (questions.length === 0) {
     return (
@@ -75,6 +138,8 @@ export const QuizScreen: React.FC = () => {
     }));
     await saveQuizResult(correctCount, answers);
     await refreshFromSupabase();
+    const { data } = await supabase.rpc('get_progress');
+    if (data) setProgress(data as ProgressLite);
   };
 
   const openConcept = (c: QConcept) => {
@@ -91,11 +156,48 @@ export const QuizScreen: React.FC = () => {
           <p className="text-4xl font-bold text-[#0E0E12]">
             {correctCount} / {questions.length}
           </p>
-          <p className="text-sm text-[#64748B]">
-            {correctCount === questions.length
-              ? 'Every answer right.'
-              : 'Review the ones you missed below.'}
-          </p>
+          <p className="text-base font-semibold text-[#0E0E12] max-w-md">{message?.line}</p>
+          {message?.time && <p className="text-sm text-[#64748B]">{message.time}</p>}
+
+          {progress && (
+            <p className="text-xs text-[#64748B] flex flex-wrap justify-center gap-x-3">
+              <span>
+                {progress.quizzes_this_week} {progress.quizzes_this_week === 1 ? 'quiz' : 'quizzes'} this week
+              </span>
+              {progress.week_streak > 0 && (
+                <span className="text-[#B45309] font-semibold">
+                  🔥 {progress.week_streak}-week streak
+                  {progress.week_streak >= progress.best_week_streak && progress.week_streak > 1 ? ' · your best yet' : ''}
+                </span>
+              )}
+            </p>
+          )}
+
+          {message && (message.nailed.length > 0 || message.revisit.length > 0) && (
+            <div className="w-full max-w-md flex flex-col gap-2 mt-1 text-sm text-left">
+              {message.nailed.length > 0 && (
+                <p className="text-[#1E293B]">
+                  <span className="text-emerald-700 font-semibold">Nailed: </span>
+                  {message.nailed.join(', ')}
+                </p>
+              )}
+              {message.revisit.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[#92400E] font-semibold">Worth another look:</span>
+                  {message.revisit.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => openConcept(c)}
+                      className="text-xs px-2 py-0.5 rounded border border-[#C9D1DB] hover:border-[#D4A94F] text-[#0E0E12] bg-white"
+                    >
+                      {c.heading}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex gap-2 mt-2">
             <button
               type="button"
