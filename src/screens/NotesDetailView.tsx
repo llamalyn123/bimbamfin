@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { invokeEdge, EdgeError } from '../lib/edge';
 import { GoDeeper } from '../components/GoDeeper';
+import { DiscussPanel } from '../components/DiscussPanel';
 
 type Point = { text: string; text_en?: string; source_ids?: unknown[]; location?: string };
 type Concept = {
@@ -289,6 +290,10 @@ export const NotesDetailView: React.FC = () => {
                   {savingAddition ? 'Saving…' : 'Save note'}
                 </button>
               </section>
+
+              {noteRow?.id && (
+                <DiscussPanel noteId={noteRow.id} language={language} sources={content.sources || []} />
+              )}
             </>
           )}
         </main>

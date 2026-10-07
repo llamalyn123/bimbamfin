@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase, SUPABASE_URL } from '../lib/supabase';
 import { invokeEdge } from '../lib/edge';
+import { TelegramConnect } from './TelegramConnect';
+import { ActivitiesManager } from './ActivitiesManager';
 
 type Feed = { url: string; last_synced_at: string | null; last_status: string | null; last_error: string | null };
 
@@ -255,6 +257,10 @@ export const ConnectedCalendars: React.FC = () => {
           </p>
         )}
       </section>
+
+      <ActivitiesManager />
+
+      <TelegramConnect />
 
       {/* Phone calendar out */}
       <section className="space-y-3 border-t border-gray-100 pt-6">

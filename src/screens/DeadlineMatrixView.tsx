@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { sourceLabel } from '../lib/labels';
 import { PasteUpdateModal } from '../components/PasteUpdateModal';
 import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
 import { AddDeadlineModal } from '../components/AddDeadlineModal';
@@ -349,7 +350,7 @@ export const DeadlineMatrixView: React.FC = () => {
                       <div className="col-span-2 flex flex-col">
                         <span className="font-label-tabular text-label-tabular text-[#0E0E12] font-bold">{item.course}</span>
                         <span className="font-body-sm text-xs text-[#64748B] truncate">
-                          {String(item.source).startsWith('ics') ? 'School calendar' : item.source}
+                          {sourceLabel(item.source)}
                         </span>
                       </div>
                       <div className="col-span-4 flex flex-col">
@@ -437,7 +438,7 @@ export const DeadlineMatrixView: React.FC = () => {
                         <span className="font-body-md text-[#0E0E12] line-through font-medium">
                           {item.title}
                         </span>
-                        <span className="font-label-micro text-[#64748B]">{String(item.source).startsWith('ics') ? 'School calendar' : item.source}</span>
+                        <span className="font-label-micro text-[#64748B]">{sourceLabel(item.source)}</span>
                       </div>
                       <div className="col-span-2 flex justify-start md:justify-end">
                         <span className="px-2 py-1 rounded bg-slate-200 font-label-micro text-[#64748B] font-semibold">

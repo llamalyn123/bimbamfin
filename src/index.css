@@ -387,3 +387,12 @@ html.dark .border-\[\#C9D1DB\],
 html.dark .border-\[\#CBD5E1\] {
   border-color: #282836 !important;
 }
+
+/* Home List / Calendar toggle in dark mode */
+html.dark .home-toggle {
+  background-color: #1F1F28 !important;
+  border-color: #282836 !important;
+}
+html.dark .home-toggle .bg-white {
+  background-color: #2E2E3A !important;
+}

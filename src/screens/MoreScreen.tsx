@@ -395,9 +395,9 @@ export const MoreScreen: React.FC = () => {
                 {/* Appearance Mode */}
                 <div className="border-t border-gray-100 pt-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider font-mono">{t('more_theme_title', 'Workspace Theme')}</h3>
+                    <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider font-mono">Theme</h3>
                     <span className="text-[11px] font-mono text-gray-400">
-                      Active: <strong className="text-[#0E0E12]">{resolvedTheme === 'dark' ? 'Dark (Ink Black #0E0E12)' : 'Light (Ice White #F4F7FB)'}</strong>
+                      Now showing: <strong className="text-[#0E0E12]">{resolvedTheme === 'dark' ? 'Dark' : 'Light'}</strong>
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
@@ -410,8 +410,8 @@ export const MoreScreen: React.FC = () => {
                       }`}
                     >
                       <Sun className="w-4 h-4 mb-1 text-[#D4A94F]" />
-                      <span className="font-semibold">{t('theme_light', 'Editorial Light')}</span>
-                      <span className="text-[10px] text-gray-400 mt-0.5">Ice White #F4F7FB</span>
+                      <span className="font-semibold">Light</span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">Bright, default</span>
                     </button>
                     <button
                       onClick={() => setThemeMode('dark')}
@@ -422,8 +422,8 @@ export const MoreScreen: React.FC = () => {
                       }`}
                     >
                       <Moon className="w-4 h-4 mb-1 text-[#D4A94F]" />
-                      <span className="font-semibold">{t('theme_dark', 'Nocturne Dark')}</span>
-                      <span className="text-[10px] text-gray-400 mt-0.5">Ink Black #0E0E12</span>
+                      <span className="font-semibold">Dark</span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">Easier at night</span>
                     </button>
                     <button
                       onClick={() => setThemeMode('system')}
@@ -434,39 +434,11 @@ export const MoreScreen: React.FC = () => {
                       }`}
                     >
                       <Globe className="w-4 h-4 mb-1 text-indigo-600" />
-                      <span className="font-semibold">{t('theme_system', 'System Match')}</span>
-                      <span className="text-[10px] text-gray-400 mt-0.5">Auto Device Sync</span>
+                      <span className="font-semibold">Auto</span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">Follows your device</span>
                     </button>
                   </div>
 
-                  {/* Shared Accents Palette Showcase */}
-                  <div className="pt-2 flex flex-col gap-2">
-                    <span className="text-[11px] font-mono text-gray-500 uppercase tracking-wider">
-                      {t('more_theme_palette_title', 'Shared Color Tokens (Calibrated for Light & Dark)')}
-                    </span>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-[10px] font-mono">
-                      <div className="p-2 rounded-lg bg-[rgba(212,169,79,0.15)] border border-[#D4A94F] text-[#92400E]">
-                        <span className="block font-bold">#D4A94F</span>
-                        <span className="text-[9px] uppercase">Gold Accent</span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-[rgba(255,79,163,0.15)] border border-[#FF4FA3] text-[#FF4FA3]">
-                        <span className="block font-bold">#FF4FA3</span>
-                        <span className="text-[9px] uppercase">Orchid Events</span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-[rgba(124,92,255,0.15)] border border-[#7C5CFF] text-[#7C5CFF]">
-                        <span className="block font-bold">#7C5CFF</span>
-                        <span className="text-[9px] uppercase">Violet Category</span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-[rgba(255,107,107,0.15)] border border-[#FF6B6B] text-[#FF6B6B]">
-                        <span className="block font-bold">#FF6B6B</span>
-                        <span className="text-[9px] uppercase">Red Urgency</span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-[rgba(242,169,59,0.15)] border border-[#F2A93B] text-[#F2A93B]">
-                        <span className="block font-bold">#F2A93B</span>
-                        <span className="text-[9px] uppercase">Amber Warning</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
@@ -738,6 +710,14 @@ export const MoreScreen: React.FC = () => {
                     <span className="font-semibold text-gray-900">AI processing:</span> when you tap Generate, Quiz, Go deeper or
                     paste a message, that content is sent to Google's Gemini service to produce the result. On the free tier Google
                     may use it to improve its models, so don't upload other people's personal data.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-900">Telegram (if you connect it):</span> we store your Telegram
+                    user ID and username, and which groups you joined with /join. The bot only reads commands and messages you
+                    forward to it, never your chats. Forwarded messages are read by the AI once and not stored; only the event
+                    details you approve are kept. They may include other people's words, so don't forward anything personal.
+                    In groups, /meet shows times everyone is free, never what anyone is doing. Disconnect or leave a group
+                    anytime in Connected accounts.
                   </p>
                   <p>
                     <span className="font-semibold text-gray-900">What we never access:</span> your university inbox, SMU login,

@@ -67,19 +67,6 @@ export const Sidebar: React.FC = () => {
       {/* Footer Info & Profile */}
       <div className="p-3 border-t border-[#C9D1DB] flex flex-col gap-2">
 
-        {/* Sync Telemetry Badge */}
-        <div className="hidden lg:flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#F8FAFC] border border-[#C9D1DB]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="font-label-micro text-label-micro text-[#64748B] tracking-wider uppercase font-medium">
-              ARCHIVE V2.4
-            </span>
-          </div>
-          <span className="font-label-tabular text-label-tabular text-[#4B5563] font-semibold">
-            {t('synced', 'SYNCED')}
-          </span>
-        </div>
-
         {/* User profile toggle */}
         <button
           onClick={() => setIsAuthModalOpen(true)}

@@ -35,11 +35,11 @@ export const Header: React.FC = () => {
         <button
           onClick={refreshFromSupabase}
           className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F1F5F9] border border-[#C9D1DB] hover:bg-slate-200 transition-colors cursor-pointer"
-          title="Click to refresh data from Supabase"
+          title="Refresh your data"
         >
           <span className={`w-1.5 h-1.5 rounded-full bg-[#10B981] ${isSyncing ? 'animate-ping' : 'animate-pulse'}`}></span>
           <span className="font-label-micro text-label-micro text-[#4B5563] uppercase tracking-wider font-semibold">
-            {isSyncing ? t('syncing', 'Syncing...') : t('active_sync', 'Active Sync')}
+            {isSyncing ? 'Refreshing…' : 'Refresh'}
           </span>
         </button>
 

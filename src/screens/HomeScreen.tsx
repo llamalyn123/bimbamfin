@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { sourceLabel } from '../lib/labels';
 import { PasteUpdateModal } from '../components/PasteUpdateModal';
 import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
 import { CalendarView } from './CalendarView';
@@ -31,7 +32,8 @@ export const HomeScreen: React.FC = () => {
     t,
     classes,
     changeAlerts,
-    dismissAlert
+    dismissAlert,
+    lastSyncedText
   } = useApp();
 
   const [eventCategoryFilter, setEventCategoryFilter] = useState<string>('All');
@@ -169,45 +171,9 @@ export const HomeScreen: React.FC = () => {
 
   return (
     <div className="flex flex-col w-full pb-12">
-      {/* Top Sync & Semester Cycle Context */}
-      <div className="flex items-center justify-between py-2 mb-1">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
-          <span className="font-label-tabular text-label-tabular text-[#64748B]">
-            {t('sync_notice', 'Synced from Supabase 5 min ago')}
-          </span>
-          <span className="text-[#CBD5E1] font-label-tabular text-label-tabular">/</span>
-          <span className="font-label-tabular text-label-tabular text-[#94A3B8]">
-            {t('semester_cycle', 'Semester Cycle 01')}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-white border border-[#E2E8F0] rounded-full shadow-xs">
-            <span className="material-symbols-outlined text-[14px] text-[#10B981]">verified_user</span>
-            <span className="font-label-micro text-label-micro text-[#475569] uppercase tracking-wider font-semibold">
-              {t('verified_sync', 'Verified Sync')}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              const idx = SUPPORTED_LANGUAGES.findIndex(l => l.code === language);
-              const next = SUPPORTED_LANGUAGES[(idx + 1) % SUPPORTED_LANGUAGES.length];
-              setLanguage(next.code);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1 bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#0E0E12] rounded-lg transition-colors shadow-xs cursor-pointer"
-            title="Switch Language"
-          >
-            <span className="text-xs">{SUPPORTED_LANGUAGES.find(l => l.code === language)?.flag}</span>
-            <span className="font-label-tabular text-label-tabular uppercase tracking-wider font-semibold">{language}</span>
-            <span className="material-symbols-outlined text-[14px] text-[#64748B]">arrow_drop_down</span>
-          </button>
-        </div>
-      </div>
-
       {/* Segmented View Toggle Control (List vs Calendar) */}
       <div className="flex items-center justify-between py-1 mb-4">
-        <div className="flex items-center p-1 bg-[#E2E8F0]/70 rounded-xl border border-[#CBD5E1]/60">
+        <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-[#CBD5E1] home-toggle">
           <button
             type="button"
             onClick={() => setHomeSubView('list')}
@@ -234,7 +200,7 @@ export const HomeScreen: React.FC = () => {
           </button>
         </div>
         <span className="font-label-tabular text-label-micro text-[#64748B] hidden sm:inline-block font-medium">
-          {t('academic_focus_mode', 'Academic Focus Mode')}
+          {lastSyncedText}
         </span>
       </div>
 
@@ -409,7 +375,7 @@ export const HomeScreen: React.FC = () => {
                             {item.title}
                           </span>
                           <span className="font-label-tabular text-label-micro text-[#64748B]">
-                            {String(item.source).startsWith('ics') ? 'School calendar' : item.source} •{' '}
+                            {sourceLabel(item.source)} •{' '}
                             {new Date(item.due_date).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                           </span>
                         </div>

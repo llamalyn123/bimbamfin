@@ -303,7 +303,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [selectedDate, setSelectedDate] = useState<number>(24);
   
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [lastSyncedText, setLastSyncedText] = useState<string>('Synced just now');
+  const [lastSyncedText, setLastSyncedText] = useState<string>('');
   const [notification, setNotification] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -535,7 +535,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }
 
-      setLastSyncedText('Synced just now');
+      setLastSyncedText(`Updated ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
     } catch (err: any) {
       console.warn('Supabase fetch notice:', err?.message || err);
     } finally {
