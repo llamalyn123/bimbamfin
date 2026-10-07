@@ -139,6 +139,8 @@ export interface NoteItem {
 export interface QuizItem {
   id: string;
   note_id?: string | null;
+  course?: string | null;
+  scope?: { course: string; from_week: number; to_week: number; focus: 'even' | 'weak'; weak_found?: number } | null;
   questions: any;
   score?: number | null;
   created_at?: string;

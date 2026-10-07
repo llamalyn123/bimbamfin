@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
+import { QuizBuilder } from '../components/QuizBuilder';
 
 type QConcept = { id: string; note_id?: string; heading?: string };
 type Question = {
@@ -56,6 +57,8 @@ type ProgressLite = { week_streak: number; quizzes_this_week: number; best_week_
 export const QuizScreen: React.FC = () => {
   const {
     quiz,
+    setQuiz,
+    setSelectedCourse,
     saveQuizResult,
     setActiveScreen,
     setSelectedWeek,
@@ -105,24 +108,7 @@ export const QuizScreen: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [finished, quiz.id]);
 
-  if (questions.length === 0) {
-    return (
-      <div className="bg-white rounded-2xl border border-[#C9D1DB] p-10 flex flex-col items-center gap-3 text-center">
-        <span className="material-symbols-outlined text-[40px] text-[#D97706]">quiz</span>
-        <h2 className="font-headline-lg text-2xl font-bold text-[#0E0E12]">No quiz open</h2>
-        <p className="font-body-md text-[#64748B] max-w-md">
-          Open a week's master note in Notes and tap "Quiz me on this week".
-        </p>
-        <button
-          type="button"
-          onClick={() => setActiveScreen('notes')}
-          className="mt-1 px-5 py-2.5 rounded-xl bg-[#D4A94F] hover:bg-[#c7993a] text-[#0E0E12] font-bold"
-        >
-          Go to Notes
-        </button>
-      </div>
-    );
-  }
+  if (questions.length === 0) return <QuizBuilder />;
 
   const q = questions[index];
   const choice = picked[index];
@@ -142,8 +128,12 @@ export const QuizScreen: React.FC = () => {
     if (data) setProgress(data as ProgressLite);
   };
 
+  const isCourseQuiz = !quiz.note_id;
+  const newQuiz = () => setQuiz({ id: '', note_id: null, questions: [], score: null });
+
   const openConcept = (c: QConcept) => {
     const w = weekOf(c.id);
+    if (quiz.course) setSelectedCourse(quiz.course);
     if (w) setSelectedWeek(Number(w));
     setActiveScreen('notes-detail');
   };
@@ -208,11 +198,20 @@ export const QuizScreen: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => setActiveScreen('notes-detail')}
+              onClick={newQuiz}
               className="px-5 py-2.5 rounded-xl bg-white border border-[#C9D1DB] font-semibold text-[#0E0E12] hover:bg-slate-50"
             >
-              Back to note
+              New quiz
             </button>
+            {!isCourseQuiz && (
+              <button
+                type="button"
+                onClick={() => setActiveScreen('notes-detail')}
+                className="px-5 py-2.5 rounded-xl bg-white border border-[#C9D1DB] font-semibold text-[#0E0E12] hover:bg-slate-50"
+              >
+                Back to note
+              </button>
+            )}
           </div>
         </div>
 
@@ -235,12 +234,18 @@ export const QuizScreen: React.FC = () => {
   return (
     <div className="flex flex-col gap-4 pb-16 max-w-3xl w-full mx-auto">
       <div className="flex items-center justify-between text-xs text-[#64748B]">
-        <span>
-          Question {index + 1} of {questions.length}
+        <span className="flex items-center gap-2">
+          <span>
+            Question {index + 1} of {questions.length}
+            {quiz.course ? ` · ${quiz.course}${quiz.scope?.from_week ? ` W${quiz.scope.from_week}–${quiz.scope.to_week}` : ''}` : ''}
+          </span>
+          <button type="button" onClick={() => window.confirm('Leave this quiz? Your answers so far won\'t be saved.') && newQuiz()} className="underline hover:text-[#0E0E12]">
+            Exit
+          </button>
         </span>
         {q.kind === 'connection' && (
           <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-[#E2E8F0] font-semibold text-[#475569]">
-            Links to an earlier week
+            {isCourseQuiz ? 'Links two weeks' : 'Links to an earlier week'}
           </span>
         )}
       </div>

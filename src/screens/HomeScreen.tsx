@@ -33,7 +33,9 @@ export const HomeScreen: React.FC = () => {
     classes,
     changeAlerts,
     dismissAlert,
-    lastSyncedText
+    lastSyncedText,
+    quiz,
+    setQuiz
   } = useApp();
 
   const [eventCategoryFilter, setEventCategoryFilter] = useState<string>('All');
@@ -498,7 +500,10 @@ export const HomeScreen: React.FC = () => {
             <section>
               <button
                 type="button"
-                onClick={() => setActiveScreen('notes')}
+                onClick={() => {
+                  if (quiz.score != null) setQuiz({ id: '', note_id: null, questions: [], score: null });
+                  setActiveScreen('quiz');
+                }}
                 className="w-full relative group overflow-hidden rounded-xl bg-gradient-to-r from-[#4F46E5] via-[#6366F1] to-[#4338CA] p-5 text-left shadow-md transition-transform active:scale-[0.99] flex items-center justify-between border-0 text-white cursor-pointer"
               >
                 <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
@@ -508,13 +513,13 @@ export const HomeScreen: React.FC = () => {
                   </div>
                   <div className="flex flex-col">
                     <span className="font-headline-sm text-headline-sm text-white font-bold flex items-center gap-1.5">
-                      {t('quiz_header_title', 'Start a 5-question quiz')}
+                      Quiz a whole course
                       <span className="material-symbols-outlined text-[18px] text-white/90 group-hover:translate-x-1 transition-transform">
                         arrow_forward
                       </span>
                     </span>
                     <span className="font-body-sm text-body-sm text-indigo-100 font-medium">
-                      Pick a week's note in Notes, then tap Quiz me
+                      Pick a course. Questions from every week you've noted.
                     </span>
                   </div>
                 </div>
