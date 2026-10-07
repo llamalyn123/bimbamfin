@@ -1,6 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { AddSourceModal } from '../components/AddSourceModal';
+import { UploadMaterialsModal } from '../components/UploadMaterialsModal';
+import { CasesSection, CaseRow } from '../components/CaseStudies';
+import { supabase } from '../lib/supabase';
+import { OutlineUploadModal } from '../components/OutlineUploadModal';
 
 /** "uid/1730000000000-Week 3 slides.pdf" -> "Week 3 slides.pdf" */
 const fileLabel = (fileUrl: string) => {
@@ -11,17 +14,29 @@ const fileLabel = (fileUrl: string) => {
 const weekLabel = (w: number) => `W${String(w).padStart(2, '0')}`;
 
 export const NotesScreen: React.FC = () => {
-  const { sources, notes, selectedCourse, setSelectedCourse, setSelectedWeek, setActiveScreen, t } = useApp();
+  const { sources, notes, selectedCourse, setSelectedCourse, setSelectedWeek, setActiveScreen, t, currentUser } = useApp();
+
+  // Case studies (not tied to a week unless the student chose one)
+  const [cases, setCases] = useState<CaseRow[]>([]);
+  const loadCases = async () => {
+    if (!currentUser?.id) return;
+    const { data } = await supabase.from('cases').select('id, course, week, title, file_path, created_at').eq('user_id', currentUser.id).order('created_at');
+    setCases((data ?? []) as CaseRow[]);
+  };
+  useEffect(() => {
+    loadCases();
+  }, [currentUser?.id, sources.length]);
 
   const [courseSearch, setCourseSearch] = useState('');
   const [isAddSourceModalOpen, setIsAddSourceModalOpen] = useState(false);
+  const [outlineOpen, setOutlineOpen] = useState(false);
   const [uploadCourse, setUploadCourse] = useState('');
   const [uploadWeek, setUploadWeek] = useState(1);
 
   // Everything below is built from the student's real uploads and notes.
   const courses = useMemo(() => {
     const codes = Array.from(
-      new Set([...sources.map((s) => s.course), ...notes.map((n) => n.course)].filter(Boolean))
+      new Set([...sources.map((s) => s.course), ...notes.map((n) => n.course), ...cases.map((c) => c.course)].filter(Boolean))
     ).sort();
     return codes.map((code) => {
       const courseSources = sources.filter((s) => s.course === code);
@@ -38,7 +53,7 @@ export const NotesScreen: React.FC = () => {
         weeksWithNotes: weeks.filter((w) => notedWeeks.has(w)).length
       };
     });
-  }, [sources, notes]);
+  }, [sources, notes, cases]);
 
   const currentCourse = courses.find((c) => c.code === selectedCourse) || courses[0];
 
@@ -94,7 +109,7 @@ export const NotesScreen: React.FC = () => {
             className="px-6 py-3 rounded-xl bg-[#D4A94F] hover:bg-[#c7993a] text-[#0E0E12] font-headline-sm font-bold flex items-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer"
           >
             <span className="material-symbols-outlined text-[20px]">add_circle</span>
-            <span>Add your first source</span>
+            <span>Add your first materials</span>
           </button>
         </div>
       ) : (
@@ -178,14 +193,24 @@ export const NotesScreen: React.FC = () => {
                     {currentCourse.weeks.length} {currentCourse.weeks.length === 1 ? 'week' : 'weeks'}
                   </p>
                 </div>
+                <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setOutlineOpen(true)}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white border border-[#C9D1DB] text-[#0E0E12] font-semibold hover:border-[#D4A94F] transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">checklist</span>
+                  <span>Course outline</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => openAddSource(currentCourse.code)}
                   className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#D4A94F] text-[#0E0E12] font-semibold hover:bg-[#c7993a] transition-all active:scale-[0.98] shadow-sm cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[18px]">add</span>
-                  <span>{t('notes_add_source_btn', 'Add source')}</span>
+                  <span>Add materials</span>
                 </button>
+                </div>
               </div>
 
               <div className="flex flex-col gap-2.5">
@@ -251,14 +276,20 @@ export const NotesScreen: React.FC = () => {
                   </span>
                 </button>
               </div>
+
+              <CasesSection course={currentCourse.code} cases={cases} onChanged={loadCases} />
             </section>
           )}
         </div>
       )}
 
-      <AddSourceModal
+      <OutlineUploadModal open={outlineOpen} onClose={() => setOutlineOpen(false)} defaultCourse={currentCourse?.code || ''} />
+      <UploadMaterialsModal
         isOpen={isAddSourceModalOpen}
-        onClose={() => setIsAddSourceModalOpen(false)}
+        onClose={() => {
+          setIsAddSourceModalOpen(false);
+          loadCases();
+        }}
         defaultCourse={uploadCourse}
         defaultWeek={uploadWeek}
       />

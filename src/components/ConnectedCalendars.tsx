@@ -56,7 +56,8 @@ export const ConnectedCalendars: React.FC = () => {
     const parts = [`${data.added} new`, `${data.updated} updated`];
     if (data.removed) parts.push(`${data.removed} removed`);
     if (data.classes) parts.push(`${data.classes} class sessions`);
-    setImportMsg({ kind: 'ok', text: `Imported ${file.name}: ${parts.join(', ')}.` });
+    if (data.skipped) parts.push(`${data.skipped} non-class items skipped`);
+    setImportMsg({ kind: 'ok', text: `Imported ${file.name}: ${data.classes ?? 0} class sessions, ${data.added + data.updated} exam slots${data.skipped ? `, ${data.skipped} other items skipped` : ''}.` });
     await refreshFromSupabase();
   };
 
@@ -215,9 +216,9 @@ export const ConnectedCalendars: React.FC = () => {
         <div>
           <h2 className="text-base font-bold text-gray-900">Upload a calendar file</h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            Got your timetable or deadlines as an <span className="font-semibold">.ics</span> file (e.g. by email)? Drop it here.
-            It's a one-time import: when your university sends an updated file, upload it again and Bimbam updates what
-            changed (your ticked-off items stay ticked).
+            Your timetable as an <span className="font-semibold">.ics</span> file (e.g. by email)? Drop it here. Classes go to
+            your calendar and exam slots to the exam countdown. Deadlines come from course outlines instead. One-time import:
+            when an updated file arrives, upload it again and Bimbam updates what changed.
           </p>
         </div>
         <label

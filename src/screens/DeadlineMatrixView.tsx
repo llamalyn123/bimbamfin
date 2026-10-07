@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { sourceLabel } from '../lib/labels';
 import { PasteUpdateModal } from '../components/PasteUpdateModal';
 import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
+import { OutlineUploadModal } from '../components/OutlineUploadModal';
 import { AddDeadlineModal } from '../components/AddDeadlineModal';
 
 export const DeadlineMatrixView: React.FC = () => {
@@ -24,6 +25,7 @@ export const DeadlineMatrixView: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const [pasteOpen, setPasteOpen] = useState(false);
+  const [outlineOpen, setOutlineOpen] = useState(false);
   const [editItem, setEditItem] = useState<EditableItem | null>(null);
 
   const isDone = (status: string) => ['completed', 'cleared', 'done'].includes(String(status).toLowerCase());
@@ -263,6 +265,14 @@ export const DeadlineMatrixView: React.FC = () => {
 
               <button
                 type="button"
+                onClick={() => setOutlineOpen(true)}
+                className="px-3.5 py-2 rounded-lg bg-[#D4A94F] hover:bg-[#c7993a] text-[#0E0E12] transition-colors font-label-tabular text-label-tabular flex items-center gap-1.5 cursor-pointer font-bold"
+              >
+                <span className="material-symbols-outlined text-[16px]">upload_file</span>
+                <span>Upload course outline</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setPasteOpen(true)}
                 className="px-3.5 py-2 rounded-lg bg-white hover:bg-slate-100 border border-[#C9D1DB] text-[#0E0E12] transition-colors font-label-tabular text-label-tabular flex items-center gap-1.5 cursor-pointer font-medium"
               >
@@ -298,16 +308,16 @@ export const DeadlineMatrixView: React.FC = () => {
                 <span className="material-symbols-outlined text-[32px] text-slate-400">task_alt</span>
                 <span className="font-body-sm">
                   {deadlines.length === 0
-                    ? 'No deadlines yet. Connect your school calendar in More, or add one yourself.'
+                    ? 'No deadlines yet. Upload a course outline, use /due in a Telegram study group, or add one yourself.'
                     : 'Nothing open for these filters.'}
                 </span>
                 {deadlines.length === 0 && (
                   <button
                     type="button"
-                    onClick={() => setIsAddModalOpen(true)}
+                    onClick={() => setOutlineOpen(true)}
                     className="mt-1 px-3.5 py-2 rounded-lg bg-[#D4A94F] hover:bg-[#c7993a] text-[#0E0E12] font-label-tabular text-xs font-bold"
                   >
-                    + Add deadline
+                    Upload course outline
                   </button>
                 )}
               </div>
@@ -358,6 +368,8 @@ export const DeadlineMatrixView: React.FC = () => {
                         {item.type && (
                           <div className="flex items-center gap-2 mt-1 flex-wrap font-label-micro text-xs text-[#64748B]">
                             <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[#475569]">{item.type}</span>
+                            {item.weight != null && <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[#475569] font-semibold">{item.weight}%</span>}
+                            {item.notes && <span className="truncate max-w-[280px]" title={item.notes}>{item.notes}</span>}
                           </div>
                         )}
                       </div>
@@ -462,6 +474,7 @@ export const DeadlineMatrixView: React.FC = () => {
       />
       <PasteUpdateModal open={pasteOpen} onClose={() => setPasteOpen(false)} />
       <ChangeItemModal item={editItem} onClose={() => setEditItem(null)} />
+      <OutlineUploadModal open={outlineOpen} onClose={() => setOutlineOpen(false)} />
     </div>
   );
 };

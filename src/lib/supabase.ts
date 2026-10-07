@@ -42,6 +42,9 @@ export interface Deadline {
   type: 'Assignment' | 'Quiz' | 'RSVP' | 'Case Study' | string;
   source: string;
   user_id?: string | null;
+  weight?: number | null;
+  notes?: string | null;
+  external_id?: string | null;
 }
 
 export interface EventItem {
