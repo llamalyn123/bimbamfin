@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UploadMaterialsModal } from '../components/UploadMaterialsModal';
 import { CasesSection, CaseRow } from '../components/CaseStudies';
+import { ManageMaterialsModal } from '../components/ManageMaterialsModal';
 import { supabase } from '../lib/supabase';
 import { OutlineUploadModal } from '../components/OutlineUploadModal';
 
@@ -30,6 +31,7 @@ export const NotesScreen: React.FC = () => {
   const [courseSearch, setCourseSearch] = useState('');
   const [isAddSourceModalOpen, setIsAddSourceModalOpen] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
   const [uploadCourse, setUploadCourse] = useState('');
   const [uploadWeek, setUploadWeek] = useState(1);
 
@@ -210,6 +212,14 @@ export const NotesScreen: React.FC = () => {
                   <span className="material-symbols-outlined text-[18px]">add</span>
                   <span>Add materials</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setManageOpen(true)}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white border border-[#C9D1DB] text-[#0E0E12] font-semibold hover:border-[#D4A94F] transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">edit_note</span>
+                  <span>Manage files</span>
+                </button>
                 </div>
               </div>
 
@@ -283,6 +293,13 @@ export const NotesScreen: React.FC = () => {
         </div>
       )}
 
+      <ManageMaterialsModal
+        open={manageOpen}
+        onClose={() => setManageOpen(false)}
+        course={currentCourse?.code || ''}
+        cases={cases}
+        onChanged={loadCases}
+      />
       <OutlineUploadModal open={outlineOpen} onClose={() => setOutlineOpen(false)} defaultCourse={currentCourse?.code || ''} />
       <UploadMaterialsModal
         isOpen={isAddSourceModalOpen}
