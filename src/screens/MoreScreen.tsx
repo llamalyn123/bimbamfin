@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { ConnectedCalendars } from '../components/ConnectedCalendars';
+import { CampusFacilities } from '../components/CampusFacilities';
 import { UniversityAffiliation } from '../lib/supabase';
 import {
   User,
@@ -103,7 +104,7 @@ export const MoreScreen: React.FC = () => {
               className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition shadow-xs cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#363FEF]' : ''}`} />
-              <span>{isSyncing ? 'Syncing...' : 'Sync Supabase'}</span>
+              <span>{isSyncing ? 'Refreshing…' : 'Refresh'}</span>
             </button>
             <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 font-mono">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -221,7 +222,7 @@ export const MoreScreen: React.FC = () => {
               }`}
             >
               <Shield className="w-4 h-4 shrink-0" />
-              <span>{t('more_tab_compliance', 'Privacy & FERPA')}</span>
+              <span>Privacy & PDPA</span>
             </button>
           </div>
 
@@ -269,98 +270,33 @@ export const MoreScreen: React.FC = () => {
                   </div>
                 </div>
 
-                {/* DETECTED UNIVERSITY & CORRECTION CONTROLS */}
-                <div className="p-4 rounded-xl border border-[#C9D1DB] bg-gradient-to-br from-white to-gray-50 space-y-3">
+                {/* INSTITUTION: derived from the login email's domain, not selectable */}
+                <div className="p-4 rounded-xl border border-[#C9D1DB] bg-gray-50 space-y-2">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <span className="text-xs font-bold text-[#0E0E12] flex items-center gap-1.5">
                         <Building2 className="w-4 h-4 text-[#D4A94F]" />
-                        {t('more_detected_uni', 'Detected Institution Affiliation')}
+                        Institution
                       </span>
                       <p className="text-[11px] text-gray-500 mt-0.5">
-                        {currentUni === 'SMU' && 'Singapore Management University • Verified Institutional Access'}
-                        {currentUni === 'NUS' && 'National University of Singapore • Verified Institutional Access'}
-                        {currentUni === 'NTU' && 'Nanyang Technological University • Verified Institutional Access'}
-                        {currentUni === 'independent' && 'Independent Scholar • Manual notes, quizzes, and personal deadline tracking'}
+                        {currentUni === 'SMU' && 'Singapore Management University'}
+                        {currentUni === 'NUS' && 'National University of Singapore'}
+                        {currentUni === 'NTU' && 'Nanyang Technological University'}
+                        {currentUni === 'independent' && 'Independent: no school email on this account'}
                       </p>
                     </div>
-
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold font-mono ${
-                      isInstitutional ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {currentUni === 'independent' ? 'INDEPENDENT' : `${currentUni} AFFILIATED`}
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
+                      {currentUni === 'independent' ? 'INDEPENDENT' : currentUni}
                     </span>
                   </div>
-
-                  {/* Correction Switcher */}
-                  <div className="pt-2 border-t border-gray-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[11px] font-semibold text-gray-700 uppercase tracking-wider font-mono">
-                        {t('more_correct_uni', 'Correct or Change Institution:')}
-                      </span>
-                      {isUpdatingUni && (
-                        <span className="text-[10px] text-indigo-600 font-mono animate-pulse">{t('more_uni_syncing', 'Syncing profiles table...')}</span>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleUniversityChange('SMU')}
-                        disabled={isUpdatingUni}
-                        className={`p-2.5 rounded-lg border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-0.5 ${
-                          currentUni === 'SMU'
-                            ? 'border-[#D4A94F] bg-[#FFFBEB] text-[#92400E] shadow-xs'
-                            : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className="font-bold text-sm">SMU</span>
-                        <span className="text-[10px] font-normal text-gray-500">Singapore Mgmt</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleUniversityChange('NUS')}
-                        disabled={isUpdatingUni}
-                        className={`p-2.5 rounded-lg border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-0.5 ${
-                          currentUni === 'NUS'
-                            ? 'border-[#D4A94F] bg-[#FFFBEB] text-[#92400E] shadow-xs'
-                            : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className="font-bold text-sm">NUS</span>
-                        <span className="text-[10px] font-normal text-gray-500">Natl Univ of Singapore</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleUniversityChange('NTU')}
-                        disabled={isUpdatingUni}
-                        className={`p-2.5 rounded-lg border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-0.5 ${
-                          currentUni === 'NTU'
-                            ? 'border-[#D4A94F] bg-[#FFFBEB] text-[#92400E] shadow-xs'
-                            : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className="font-bold text-sm">NTU</span>
-                        <span className="text-[10px] font-normal text-gray-500">Nanyang Tech Univ</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleUniversityChange('independent')}
-                        disabled={isUpdatingUni}
-                        className={`p-2.5 rounded-lg border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-0.5 ${
-                          currentUni === 'independent'
-                            ? 'border-[#363FEF] bg-indigo-50 text-indigo-800 shadow-xs'
-                            : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className="font-bold text-sm">Independent</span>
-                        <span className="text-[10px] font-normal text-gray-500">General Scholar</span>
-                      </button>
-                    </div>
-                  </div>
+                  <p className="text-[11px] text-gray-500 flex items-start gap-1">
+                    <span className="material-symbols-outlined text-[14px]">info</span>
+                    <span>
+                      {currentUni === 'independent'
+                        ? 'Set from your login email. Sign up with your school email (e.g. @smu.edu.sg) to unlock school features like campus facilities.'
+                        : `Set from your login email domain (${currentUser?.email?.split('@')[1] ?? ''}). It can't be changed by hand.`}
+                    </span>
+                  </p>
                 </div>
 
                 {/* UI Language Switcher */}
@@ -681,144 +617,8 @@ export const MoreScreen: React.FC = () => {
             {/* CONNECTED ACCOUNTS: real calendar sync */}
             {activeTab === 'lms' && <ConnectedCalendars />}
 
-            {/* FACILITIES TAB - GATED BY INSTITUTION */}
-            {activeTab === 'facilities' && (
-              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-xs space-y-6">
-                <div>
-                  <h2 className="text-base font-bold text-gray-900 font-display">{t('facilities_title', 'Campus Facilities & Study Lounges')}</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">{t('facilities_subtitle', 'Availability and direct booking links for campus research labs and discussion carrels.')}</p>
-                </div>
-
-                {isInstitutional ? (
-                  /* Institutional Booking Links for SMU, NUS, NTU */
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {currentUni === 'SMU' && (
-                      <>
-                        <div className="p-4 rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-gray-900">SMU Li Ka Shing Bloomberg Lab</span>
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-mono font-semibold rounded">4 of 8 FREE</span>
-                          </div>
-                          <p className="text-xs text-gray-600">Terminal 03 & 04 reserved for Valuation Modeling & Capstone Projects.</p>
-                          <div className="pt-2 flex items-center justify-between">
-                            <span className="text-[11px] text-gray-400 font-mono">Open until 02:00 AM</span>
-                            <button className="text-xs font-semibold text-[#363FEF] hover:underline inline-flex items-center gap-1 cursor-pointer">
-                              Book Slot <ExternalLink className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="p-4 rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-gray-900">SMU Connexion Research Pods</span>
-                            <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-mono font-semibold rounded">HIGH DEMAND</span>
-                          </div>
-                          <p className="text-xs text-gray-600">Sound-dampened individual study carrels with dual 4K monitors.</p>
-                          <div className="pt-2 flex items-center justify-between">
-                            <span className="text-[11px] text-gray-400 font-mono">24/7 Keycard Access</span>
-                            <button className="text-xs font-semibold text-[#363FEF] hover:underline inline-flex items-center gap-1 cursor-pointer">
-                              Reserve <ExternalLink className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {currentUni === 'NUS' && (
-                      <>
-                        <div className="p-4 rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-gray-900">NUS Central Library Bloomberg Hub</span>
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-mono font-semibold rounded">6 FREE</span>
-                          </div>
-                          <p className="text-xs text-gray-600">Level 4 Financial Analytics workstation cluster.</p>
-                          <div className="pt-2 flex items-center justify-between">
-                            <span className="text-[11px] text-gray-400 font-mono">Open 08:30 AM - Midnight</span>
-                            <button className="text-xs font-semibold text-[#363FEF] hover:underline inline-flex items-center gap-1 cursor-pointer">
-                              NUS Booking <ExternalLink className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="p-4 rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-gray-900">NUS UTown Mac Commons</span>
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-mono font-semibold rounded">AVAILABLE</span>
-                          </div>
-                          <p className="text-xs text-gray-600">Quiet study carrels and collaborative workstations with high-speed Wi-Fi.</p>
-                          <div className="pt-2 flex items-center justify-between">
-                            <span className="text-[11px] text-gray-400 font-mono">24/7 Access</span>
-                            <button className="text-xs font-semibold text-[#363FEF] hover:underline inline-flex items-center gap-1 cursor-pointer">
-                              Reserve <ExternalLink className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {currentUni === 'NTU' && (
-                      <>
-                        <div className="p-4 rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-gray-900">NTU Lee Wee Nam Bloomberg Lab</span>
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-mono font-semibold rounded">5 FREE</span>
-                          </div>
-                          <p className="text-xs text-gray-600">Financial trading and portfolio analytics suite.</p>
-                          <div className="pt-2 flex items-center justify-between">
-                            <span className="text-[11px] text-gray-400 font-mono">Open 08:30 AM - 10:00 PM</span>
-                            <button className="text-xs font-semibold text-[#363FEF] hover:underline inline-flex items-center gap-1 cursor-pointer">
-                              NTU Booking <ExternalLink className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="p-4 rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-gray-900">The Arc Learning Pods</span>
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-mono font-semibold rounded">ROOM 3B FREE</span>
-                          </div>
-                          <p className="text-xs text-gray-600">Smart project rooms with wireless projection and collaboration whiteboards.</p>
-                          <div className="pt-2 flex items-center justify-between">
-                            <span className="text-[11px] text-gray-400 font-mono">Open until 11:00 PM</span>
-                            <button className="text-xs font-semibold text-[#363FEF] hover:underline inline-flex items-center gap-1 cursor-pointer">
-                              Reserve Room <ExternalLink className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  /* Independent Scholar Notice: Facility Booking Restricted */
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
-                      <div className="flex items-center gap-2 font-bold text-amber-900">
-                        <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span>Campus Facility Booking Restricted</span>
-                      </div>
-                      <p className="text-amber-800 leading-relaxed text-[11px]">
-                        Booking links for university Bloomberg labs and discussion pods are reserved for enrolled students at SMU, NUS, or NTU with institutional keycard credentials.
-                      </p>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-2 text-xs text-gray-600">
-                      <span className="font-bold text-gray-900">Open Public & Independent Workstations</span>
-                      <p className="text-[11px] leading-relaxed">
-                        Independent scholars are recommended to utilize Singapore National Library Board (NLB) reference pods, open-access university library floors, or co-working study lounges.
-                      </p>
-                      <div className="pt-2">
-                        <button
-                          onClick={() => handleUniversityChange('SMU')}
-                          className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition cursor-pointer"
-                        >
-                          Switch to SMU / NUS / NTU Student Profile
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* CAMPUS FACILITIES: public info + the student's own bookings */}
+            {activeTab === 'facilities' && <CampusFacilities />}
 
             {/* NOTIFICATIONS TAB */}
             {activeTab === 'notifications' && (
@@ -920,23 +720,34 @@ export const MoreScreen: React.FC = () => {
             {activeTab === 'compliance' && (
               <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-xs space-y-6">
                 <div>
-                  <h2 className="text-base font-bold text-gray-900 font-display">Data Privacy, FERPA & Compliance</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">Strict academic privacy standards for notes, grades, and intellectual property.</p>
+                  <h2 className="text-base font-bold text-gray-900 font-display">Privacy & your data (PDPA)</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">What Bimbam keeps, who processes it, and what it never touches.</p>
                 </div>
-
                 <div className="space-y-3 text-xs text-gray-600 leading-relaxed">
                   <p>
-                    All ingested notes, slide decks, and formula synthesis materials are encrypted in transit with TLS 1.3 and at rest with AES-256 within your Supabase PostgreSQL cluster.
+                    <span className="font-semibold text-gray-900">What we store:</span> your account email and name, files you upload,
+                    the notes and quizzes made from them, deadlines and classes from calendars you connect or upload, events and
+                    bookings you choose to add, and your settings. Stored in Supabase (Singapore region if your project is set
+                    there), encrypted in transit and at rest.
                   </p>
                   <p>
-                    Row Level Security policies prevent unauthorized access across students. Your quiz evaluations, streak records, and RSVP intentions remain strictly confined to your authenticated scholar session.
+                    <span className="font-semibold text-gray-900">Who can see it:</span> only you. Database rules lock every row to
+                    your account; other students can't read your data.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-900">AI processing:</span> when you tap Generate, Quiz, Go deeper or
+                    paste a message, that content is sent to Google's Gemini service to produce the result. On the free tier Google
+                    may use it to improve its models, so don't upload other people's personal data.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-900">What we never access:</span> your university inbox, SMU login,
+                    grades or bookings. Bimbam only sees what you upload, paste or connect yourself.
                   </p>
                 </div>
-
                 <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
                   <span className="text-xs font-bold text-gray-900">Student Data Ownership</span>
                   <p className="text-[11px] text-gray-500">
-                    You retain 100% intellectual property ownership of your annotated notes and synthesized study packs. You can export or purge your data at any time.
+                    Your notes and uploads stay yours. Download a copy of your data at any time. To delete your account and everything in it, contact the Bimbam team (self-service deletion is coming).
                   </p>
                   <div className="pt-2 flex gap-3">
                     <button
@@ -959,7 +770,7 @@ export const MoreScreen: React.FC = () => {
                       }}
                       className="px-3 py-1.5 text-xs font-semibold text-[#363FEF] bg-[#EEF0FF] rounded-lg hover:bg-[#E0E4FF] transition cursor-pointer"
                     >
-                      Export Full JSON Archive
+                      Download my data
                     </button>
                   </div>
                 </div>

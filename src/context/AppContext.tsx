@@ -8,7 +8,9 @@ import {
   QuizItem,
   QuoteItem,
   UniversityAffiliation,
-  inferUniversity
+  inferUniversity,
+  ClassItem,
+  ChangeAlert
 } from '../lib/supabase';
 import {
   SupportedLanguage,
@@ -71,6 +73,9 @@ interface AppContextType {
   notes: NoteItem[];
   quiz: QuizItem;
   setQuiz: (quiz: QuizItem) => void;
+  classes: ClassItem[];
+  changeAlerts: ChangeAlert[];
+  dismissAlert: (id: number) => Promise<void>;
   quotes: QuoteItem[];
   userEventInterests: Record<string, boolean>; // eventId -> registered
   reminders: Record<string, boolean>; // eventId -> has reminder
@@ -277,6 +282,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [sources, setSources] = useState<SourceItem[]>([]);
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [quiz, setQuiz] = useState<QuizItem>(EMPTY_QUIZ);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [changeAlerts, setChangeAlerts] = useState<ChangeAlert[]>([]);
   const [quotes, setQuotes] = useState<QuoteItem[]>([]);
   const [activeQuote, setActiveQuote] = useState<QuoteItem | null>({
     id: 'default',
@@ -334,9 +341,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           try {
             const { data: profileRows } = await supabase.from('profiles').select('university, full_name').eq('id', session.user.id).limit(1);
             if (profileRows && profileRows.length > 0) {
-              if (profileRows[0].university) {
-                userUni = profileRows[0].university as UniversityAffiliation;
-              }
               if (profileRows[0].full_name) {
                 userFullName = profileRows[0].full_name;
               }
@@ -413,9 +417,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
           const { data: profileRows } = await supabase.from('profiles').select('university, full_name').eq('id', session.user.id).limit(1);
           if (profileRows && profileRows.length > 0) {
-            if (profileRows[0].university) {
-              userUni = profileRows[0].university as UniversityAffiliation;
-            }
             if (profileRows[0].full_name) {
               userFullName = profileRows[0].full_name;
             }
@@ -473,7 +474,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // 2. Deadlines
       const { data: deadlineRows } = await supabase.from('deadlines').select('*').order('due_date');
-      setDeadlines((deadlineRows ?? []) as Deadline[]);
+      // Cancelled items (by the student or a confirmed announcement) are hidden everywhere
+      setDeadlines(((deadlineRows ?? []) as Deadline[]).filter(d => String(d.status).toLowerCase() !== 'cancelled'));
+
+      const { data: classRows } = await supabase
+        .from('classes')
+        .select('id, external_id, course, title, starts_at, ends_at, location')
+        .gte('starts_at', new Date(Date.now() - 864e5).toISOString())
+        .lte('starts_at', new Date(Date.now() + 60 * 864e5).toISOString())
+        .order('starts_at');
+      setClasses((classRows ?? []) as ClassItem[]);
+
+      const { data: alertRows } = await supabase
+        .from('change_alerts')
+        .select('id, kind, message, created_at')
+        .eq('seen', false)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      setChangeAlerts((alertRows ?? []) as ChangeAlert[]);
 
       // 3. Events
       const { data: eventRows } = await supabase.from('events').select('*').order('event_date');
@@ -510,11 +528,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // 7. Profile sync if logged in
       if (currentUser?.id) {
-        const { data: profData } = await supabase.from('profiles').select('university').eq('id', currentUser.id).limit(1);
-        if (profData && profData.length > 0 && profData[0].university) {
-          if (profData[0].university !== currentUser.university) {
-            setCurrentUser(prev => prev ? ({ ...prev, university: profData[0].university }) : null);
-          }
+        // Institution is derived from the email domain; keep the stored value in step
+        const derived = inferUniversity(currentUser.email);
+        if (derived !== currentUser.university) {
+          setCurrentUser(prev => prev ? ({ ...prev, university: derived }) : null);
         }
       }
 
@@ -524,6 +541,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const dismissAlert = async (id: number) => {
+    setChangeAlerts(prev => prev.filter(a => a.id !== id));
+    await supabase.from('change_alerts').update({ seen: true }).eq('id', id);
   };
 
   // If a school calendar is connected and hasn't synced for 6h, refresh it in the background
@@ -551,41 +573,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setSources([]);
       setNotes([]);
       setQuiz(EMPTY_QUIZ);
+      setClasses([]);
+      setChangeAlerts([]);
       setUserEventInterests({});
     }
   }, [currentUser?.id]);
 
   // Update student's university affiliation and sync to Supabase profiles
-  const updateUniversity = async (newUni: UniversityAffiliation): Promise<boolean> => {
+  // Institution can't be picked by hand any more: it always follows the email domain.
+  const updateUniversity = async (_newUni: UniversityAffiliation): Promise<boolean> => {
     if (!currentUser) return false;
-    const updatedUser: ScholarUser = {
-      ...currentUser,
-      university: newUni
-    };
-    setCurrentUser(updatedUser);
-    try {
-      localStorage.setItem('nocturne_auth_user', JSON.stringify(updatedUser));
-    } catch (e) {
-      console.warn('Local storage error:', e);
-    }
-
-    try {
-      // Upsert into Supabase profiles table
-      const { error } = await supabase.from('profiles').upsert({
-        id: currentUser.id,
-        email: currentUser.email,
-        university: newUni
-      });
-      if (error) {
-        console.warn('Profiles table update notice:', error.message);
-      }
-      showToast(`Affiliation updated to ${newUni === 'independent' ? 'Independent Scholar' : newUni}`);
-    } catch (err) {
-      console.warn('Error updating profile in Supabase:', err);
-      showToast(`Affiliation updated to ${newUni === 'independent' ? 'Independent Scholar' : newUni}`);
-    }
-    return true;
+    const derived = inferUniversity(currentUser.email);
+    await supabase.from('profiles').update({ university: derived }).eq('id', currentUser.id);
+    setCurrentUser(prev => prev ? ({ ...prev, university: derived }) : null);
+    return derived === _newUni;
   };
+
 
   // Toggle deadline completion
   const toggleDeadline = async (id: string) => {
@@ -754,9 +757,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const { data: profData } = await supabase.from('profiles').select('university, full_name').eq('id', userId).limit(1);
         if (profData && profData.length > 0) {
-          if (profData[0].university) {
-            inferredUni = profData[0].university as UniversityAffiliation;
-          }
+          // institution comes from the email domain only
           if (profData[0].full_name) {
             userFullName = profData[0].full_name;
           } else if (userFullName) {
@@ -951,6 +952,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         notes,
         quiz,
         setQuiz,
+        classes,
+        changeAlerts,
+        dismissAlert,
         quotes,
         userEventInterests,
         reminders,

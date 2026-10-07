@@ -15,17 +15,20 @@ export interface ProfileItem {
   created_at?: string;
 }
 
+/**
+ * Institution comes ONLY from the login email's domain (exact domain or a
+ * subdomain of it), e.g. jane.2024@scis.smu.edu.sg -> SMU. Not user-editable.
+ */
+const UNI_DOMAINS: Record<Exclude<UniversityAffiliation, 'independent'>, string[]> = {
+  SMU: ['smu.edu.sg'],
+  NUS: ['nus.edu.sg', 'u.nus.edu', 'nus.edu'],
+  NTU: ['ntu.edu.sg', 'e.ntu.edu.sg']
+};
+
 export function inferUniversity(email: string): UniversityAffiliation {
-  const lower = email.toLowerCase().trim();
-  const domain = lower.split('@')[1] || '';
-  if (domain.includes('smu.edu') || domain === 'smu' || lower.includes('@smu.') || lower.includes('.smu.')) {
-    return 'SMU';
-  }
-  if (domain.includes('nus.edu') || domain === 'nus' || lower.includes('@nus.') || lower.includes('@u.nus.')) {
-    return 'NUS';
-  }
-  if (domain.includes('ntu.edu') || domain === 'ntu' || lower.includes('@ntu.') || lower.includes('@e.ntu.')) {
-    return 'NTU';
+  const domain = (email.toLowerCase().trim().split('@')[1] || '').replace(/\.$/, '');
+  for (const [uni, roots] of Object.entries(UNI_DOMAINS)) {
+    if (roots.some((r) => domain === r || domain.endsWith(`.${r}`))) return uni as UniversityAffiliation;
   }
   return 'independent';
 }
@@ -64,6 +67,23 @@ export interface EventItem {
   organiser?: string | null;
   end_date?: string | null;
   created_by?: string | null;
+}
+
+export interface ClassItem {
+  id: number | string;
+  external_id: string;
+  course: string;
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  location: string | null;
+}
+
+export interface ChangeAlert {
+  id: number;
+  kind: string;
+  message: string;
+  created_at: string;
 }
 
 export interface SourceItem {

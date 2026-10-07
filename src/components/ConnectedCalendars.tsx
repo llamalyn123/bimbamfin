@@ -32,6 +32,31 @@ export const ConnectedCalendars: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [exportToken, setExportToken] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
+  // Upload a .ics file the university sent (one-off snapshot, no link needed)
+  const importFile = async (file?: File | null) => {
+    if (!file) return;
+    setImportMsg(null);
+    if (!/\.ics$/i.test(file.name) && file.type !== 'text/calendar') {
+      return setImportMsg({ kind: 'error', text: 'Please choose a calendar file ending in .ics.' });
+    }
+    if (file.size > 2_000_000) {
+      return setImportMsg({ kind: 'error', text: 'That file is too large (max 2 MB).' });
+    }
+    setImporting(true);
+    const text = await file.text();
+    const { data, error } = await invokeEdge('sync-deadlines', { ics_text: text });
+    setImporting(false);
+    if (error) return setImportMsg({ kind: 'error', text: error.message });
+    const parts = [`${data.added} new`, `${data.updated} updated`];
+    if (data.removed) parts.push(`${data.removed} removed`);
+    if (data.classes) parts.push(`${data.classes} class sessions`);
+    setImportMsg({ kind: 'ok', text: `Imported ${file.name}: ${parts.join(', ')}.` });
+    await refreshFromSupabase();
+  };
 
   const loadFeed = async () => {
     if (!currentUser?.id) return;
@@ -179,6 +204,54 @@ export const ConnectedCalendars: React.FC = () => {
         {message && (
           <p role="status" className={`text-xs ${message.kind === 'error' ? 'text-red-700' : 'text-emerald-700'}`}>
             {message.text}
+          </p>
+        )}
+      </section>
+
+      {/* Upload a calendar file */}
+      <section className="space-y-3 border-t border-gray-100 pt-6">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">Upload a calendar file</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Got your timetable or deadlines as an <span className="font-semibold">.ics</span> file (e.g. by email)? Drop it here.
+            It's a one-time import: when your university sends an updated file, upload it again and Bimbam updates what
+            changed (your ticked-off items stay ticked).
+          </p>
+        </div>
+        <label
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            importFile(e.dataTransfer.files?.[0]);
+          }}
+          className={`flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed cursor-pointer transition-colors text-center ${
+            dragOver ? 'border-[#D4A94F] bg-amber-50' : 'border-gray-300 hover:border-[#D4A94F]'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[28px] text-[#D4A94F]">upload_file</span>
+          <span className="text-sm font-semibold text-gray-900">
+            {importing ? 'Importing…' : 'Drop your .ics file here, or click to choose'}
+          </span>
+          <span className="text-xs text-gray-500">Max 2 MB</span>
+          <input
+            type="file"
+            accept=".ics,text/calendar"
+            className="hidden"
+            disabled={importing}
+            onChange={(e) => {
+              importFile(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+        </label>
+        {importMsg && (
+          <p role="status" className={`text-xs ${importMsg.kind === 'error' ? 'text-red-700' : 'text-emerald-700'}`}>
+            {importMsg.text}
           </p>
         )}
       </section>

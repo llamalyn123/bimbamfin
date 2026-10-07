@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { PasteUpdateModal } from '../components/PasteUpdateModal';
+import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
 import { CalendarView } from './CalendarView';
 import { SUPPORTED_LANGUAGES } from '../i18n/translations';
 import { supabase } from '../lib/supabase';
@@ -26,7 +28,10 @@ export const HomeScreen: React.FC = () => {
     currentUser,
     language,
     setLanguage,
-    t
+    t,
+    classes,
+    changeAlerts,
+    dismissAlert
   } = useApp();
 
   const [eventCategoryFilter, setEventCategoryFilter] = useState<string>('All');
@@ -54,6 +59,28 @@ export const HomeScreen: React.FC = () => {
     });
   }, [currentUser?.id, deadlines.length]);
   const hasProgress = Boolean(progress && progress.quizzes_total > 0);
+
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [editItem, setEditItem] = useState<EditableItem | null>(null);
+
+  // Next class today, else the first one tomorrow
+  const nextClass = (() => {
+    const now = Date.now();
+    const upcoming = classes.filter((c) => new Date(c.starts_at).getTime() > now);
+    const first = upcoming[0];
+    if (!first) return null;
+    const d = new Date(first.starts_at);
+    const today = new Date();
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const label =
+      d.toDateString() === today.toDateString()
+        ? 'Next class'
+        : d.toDateString() === tomorrow.toDateString()
+        ? 'Tomorrow'
+        : d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+    return { cls: first, label };
+  })();
+  const fmtT = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   // Filter events
   const filteredEvents = events.filter((e) => {
@@ -239,6 +266,62 @@ export const HomeScreen: React.FC = () => {
               )}
             </section>
 
+            {/* Change alerts from calendar syncs */}
+            {changeAlerts.length > 0 && (
+              <section className="rounded-xl border border-[#F2A93B]/50 bg-[#FFFBEB] p-3 flex flex-col gap-2" aria-label="Schedule changes">
+                {changeAlerts.map((a) => (
+                  <div key={a.id} className="flex items-start gap-2 text-sm">
+                    <span className="material-symbols-outlined text-[18px] text-[#B45309]">
+                      {a.kind.includes('removed') ? 'event_busy' : 'update'}
+                    </span>
+                    <span className="flex-1 text-[#1E293B]">{a.message}</span>
+                    <button
+                      type="button"
+                      onClick={() => dismissAlert(a.id)}
+                      aria-label="Dismiss"
+                      className="text-[#64748B] hover:text-[#0E0E12]"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">close</span>
+                    </button>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {/* Next class + paste a change */}
+            <div className="flex flex-wrap items-center gap-2">
+              {nextClass && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditItem({
+                      type: 'class',
+                      id: nextClass.cls.id,
+                      external_id: nextClass.cls.external_id,
+                      title: nextClass.cls.title,
+                      course: nextClass.cls.course,
+                      start: nextClass.cls.starts_at,
+                      end: nextClass.cls.ends_at
+                    })
+                  }
+                  className="flex-1 min-w-[220px] text-left px-3 py-2 rounded-xl bg-white border border-[#C9D1DB] text-sm text-[#1E293B] hover:border-[#94A3B8]"
+                  title="Tap if this class moved or was cancelled"
+                >
+                  <span className="font-semibold">{nextClass.label}:</span> {nextClass.cls.course} · {fmtT(nextClass.cls.starts_at)}
+                  {nextClass.cls.ends_at ? `–${fmtT(nextClass.cls.ends_at)}` : ''}
+                  {nextClass.cls.location ? ` · ${nextClass.cls.location}` : ''}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setPasteOpen(true)}
+                className="px-3 py-2 rounded-xl bg-white border border-[#C9D1DB] text-sm font-semibold text-[#0E0E12] hover:border-[#D4A94F] flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[18px]">edit_calendar</span>
+                Paste a change
+              </button>
+            </div>
+
             {/* Achievement strip: gold glow only once something is earned */}
             {hasProgress && progress ? (
               <section className="relative rounded-xl bg-[#FFFDF5] border border-[#FDE68A] p-4 shadow-[0_4px_20px_rgba(212,169,79,0.16)]">
@@ -326,7 +409,7 @@ export const HomeScreen: React.FC = () => {
                             {item.title}
                           </span>
                           <span className="font-label-tabular text-label-micro text-[#64748B]">
-                            {item.source === 'ics' ? 'School calendar' : item.source} •{' '}
+                            {String(item.source).startsWith('ics') ? 'School calendar' : item.source} •{' '}
                             {new Date(item.due_date).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                           </span>
                         </div>
@@ -483,6 +566,8 @@ export const HomeScreen: React.FC = () => {
           </div>
         </div>
       )}
+      <PasteUpdateModal open={pasteOpen} onClose={() => setPasteOpen(false)} />
+      <ChangeItemModal item={editItem} onClose={() => setEditItem(null)} />
     </div>
   );
 };

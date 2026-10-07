@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { PasteUpdateModal } from '../components/PasteUpdateModal';
+import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
 import { AddDeadlineModal } from '../components/AddDeadlineModal';
 
 export const DeadlineMatrixView: React.FC = () => {
@@ -19,6 +21,9 @@ export const DeadlineMatrixView: React.FC = () => {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
   const [isArchiveOpen, setIsArchiveOpen] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [editItem, setEditItem] = useState<EditableItem | null>(null);
 
   const isDone = (status: string) => ['completed', 'cleared', 'done'].includes(String(status).toLowerCase());
   const now = Date.now();
@@ -257,6 +262,14 @@ export const DeadlineMatrixView: React.FC = () => {
 
               <button
                 type="button"
+                onClick={() => setPasteOpen(true)}
+                className="px-3.5 py-2 rounded-lg bg-white hover:bg-slate-100 border border-[#C9D1DB] text-[#0E0E12] transition-colors font-label-tabular text-label-tabular flex items-center gap-1.5 cursor-pointer font-medium"
+              >
+                <span className="material-symbols-outlined text-[16px]">edit_calendar</span>
+                <span>Paste a change</span>
+              </button>
+              <button
+                type="button"
                 onClick={refreshFromSupabase}
                 className="px-3.5 py-2 rounded-lg bg-[#C5983E] hover:bg-[#D4A94F] text-[#0E0E12] font-label-tabular text-label-tabular font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
               >
@@ -336,7 +349,7 @@ export const DeadlineMatrixView: React.FC = () => {
                       <div className="col-span-2 flex flex-col">
                         <span className="font-label-tabular text-label-tabular text-[#0E0E12] font-bold">{item.course}</span>
                         <span className="font-body-sm text-xs text-[#64748B] truncate">
-                          {item.source === 'ics' ? 'School calendar' : item.source}
+                          {String(item.source).startsWith('ics') ? 'School calendar' : item.source}
                         </span>
                       </div>
                       <div className="col-span-4 flex flex-col">
@@ -347,7 +360,18 @@ export const DeadlineMatrixView: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className="col-span-2 flex justify-start md:justify-end">
+                      <div className="col-span-2 flex justify-start md:justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditItem({ type: 'deadline', id: item.id, title: item.title, course: item.course, start: item.due_date })
+                          }
+                          title="Moved or cancelled?"
+                          aria-label={`Change ${item.title}`}
+                          className="px-2 py-1.5 rounded-lg bg-white hover:bg-slate-100 border border-[#C9D1DB] text-[#475569]"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">edit_calendar</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleAction(item)}
@@ -413,7 +437,7 @@ export const DeadlineMatrixView: React.FC = () => {
                         <span className="font-body-md text-[#0E0E12] line-through font-medium">
                           {item.title}
                         </span>
-                        <span className="font-label-micro text-[#64748B]">{item.source === 'ics' ? 'School calendar' : item.source}</span>
+                        <span className="font-label-micro text-[#64748B]">{String(item.source).startsWith('ics') ? 'School calendar' : item.source}</span>
                       </div>
                       <div className="col-span-2 flex justify-start md:justify-end">
                         <span className="px-2 py-1 rounded bg-slate-200 font-label-micro text-[#64748B] font-semibold">
@@ -435,6 +459,8 @@ export const DeadlineMatrixView: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
       />
+      <PasteUpdateModal open={pasteOpen} onClose={() => setPasteOpen(false)} />
+      <ChangeItemModal item={editItem} onClose={() => setEditItem(null)} />
     </div>
   );
 };

@@ -355,3 +355,35 @@ html.dark input,
 html.dark textarea {
   color: #F4F4F6;
 }
+
+/* ---- Dark mode: light gradient cards and tinted highlights (More screen etc.) ---- */
+html.dark [class*="from-white"],
+html.dark [class*="from-gray-50"],
+html.dark [class*="from-slate-50"] {
+  background-image: none !important;
+  background-color: #17171D !important;
+}
+html.dark .bg-indigo-50,
+html.dark .bg-\[\#EEF0FF\],
+html.dark .bg-\[\#F5F3FF\] {
+  background-color: rgba(124, 92, 255, 0.14) !important;
+}
+html.dark .bg-\[\#FFFBEB\],
+html.dark .bg-amber-50,
+html.dark .bg-yellow-50 {
+  background-color: rgba(212, 169, 79, 0.12) !important;
+}
+html.dark .bg-indigo-100,
+html.dark .bg-gray-100 {
+  background-color: #262634 !important;
+}
+html.dark .text-indigo-800,
+html.dark .text-indigo-900 {
+  color: #C4B5FD !important;
+}
+html.dark .border-gray-200,
+html.dark .border-gray-300,
+html.dark .border-\[\#C9D1DB\],
+html.dark .border-\[\#CBD5E1\] {
+  border-color: #282836 !important;
+}

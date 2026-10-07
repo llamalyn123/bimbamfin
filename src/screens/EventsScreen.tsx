@@ -183,7 +183,7 @@ export const EventsScreen: React.FC = () => {
                   </span>
                   {mine && (
                     <span className="px-2 py-0.5 rounded-full bg-[#FFF0F7] text-[#BE185D] text-[10px] font-semibold border border-[#FBCFE8]">
-                      From your email
+                      {ev.source === 'booking' ? 'Your booking' : 'From your email'}
                     </span>
                   )}
                 </div>

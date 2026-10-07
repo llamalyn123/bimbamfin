@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
 
 type CalItem = {
   id: string;
-  category: 'Assignment' | 'Quiz' | 'Event';
+  category: 'Assignment' | 'Quiz' | 'Event' | 'Class';
   categoryBadge: string;
   time: string;
   courseOrHost: string;
@@ -14,6 +15,7 @@ type CalItem = {
   actionType: 'note' | 'event';
   course?: string;
   dateMs: number;
+  edit?: EditableItem;
 };
 
 const toKey = (d: Date) =>
@@ -22,7 +24,8 @@ const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute:
 const DONE = ['completed', 'cleared', 'done'];
 
 export const CalendarView: React.FC = () => {
-  const { deadlines, events, setActiveScreen, setSelectedCourse, t } = useApp();
+  const { deadlines, events, classes, setActiveScreen, setSelectedCourse, t } = useApp();
+  const [editItem, setEditItem] = useState<EditableItem | null>(null);
 
   const today = new Date();
   const todayKey = toKey(today);
@@ -48,12 +51,13 @@ export const CalendarView: React.FC = () => {
         time: fmtTime(d),
         courseOrHost: dl.course || '',
         title: dl.title,
-        subtitle: dl.source === 'ics' ? 'From your school calendar' : 'Added by you',
+        subtitle: String(dl.source).startsWith('ics') ? 'From your school calendar' : 'Added by you',
         weightOrStatus: done ? 'Done' : 'Due',
         actionText: 'Open notes',
         actionType: 'note',
         course: dl.course,
-        dateMs: d.getTime()
+        dateMs: d.getTime(),
+        edit: { type: 'deadline', id: dl.id, title: dl.title, course: dl.course, start: dl.due_date }
       });
     }
     for (const ev of events) {
@@ -73,9 +77,27 @@ export const CalendarView: React.FC = () => {
         dateMs: d.getTime()
       });
     }
+    for (const c of classes) {
+      const d = new Date(c.starts_at);
+      add(d, {
+        id: `c-${c.id}`,
+        category: 'Class',
+        categoryBadge: 'Class',
+        time: c.ends_at ? `${fmtTime(d)}–${fmtTime(new Date(c.ends_at))}` : fmtTime(d),
+        courseOrHost: c.course || '',
+        title: c.title,
+        subtitle: c.location || '',
+        weightOrStatus: '',
+        actionText: 'Open notes',
+        actionType: 'note',
+        course: c.course,
+        dateMs: d.getTime(),
+        edit: { type: 'class', id: c.id, external_id: c.external_id, title: c.title, course: c.course, start: c.starts_at, end: c.ends_at }
+      });
+    }
     Object.values(map).forEach((list) => list.sort((a, b) => a.dateMs - b.dateMs));
     return map;
-  }, [deadlines, events]);
+  }, [deadlines, events, classes]);
 
   // Month grid, weeks starting Monday
   const calendarCells = useMemo(() => {
@@ -88,7 +110,7 @@ export const CalendarView: React.FC = () => {
       const d = new Date(y, m, 1 - startOffset + i);
       const key = toKey(d);
       const items = itemsByDay[key] || [];
-      const dueItems = items.filter((x) => x.category !== 'Event');
+      const dueItems = items.filter((x) => x.category === 'Assignment' || x.category === 'Quiz');
       const eventItems = items.filter((x) => x.category === 'Event');
       return {
         key,
@@ -106,12 +128,17 @@ export const CalendarView: React.FC = () => {
 
   const selectedDay = new Date(`${selectedKey}T00:00:00`);
   const selectedItems = itemsByDay[selectedKey] || [];
-  const dueCount = selectedItems.filter((x) => x.category !== 'Event').length;
-  const eventCount = selectedItems.length - dueCount;
+  const dueCount = selectedItems.filter((x) => x.category === 'Assignment' || x.category === 'Quiz').length;
+  const classCount = selectedItems.filter((x) => x.category === 'Class').length;
+  const eventCount = selectedItems.length - dueCount - classCount;
   const currentInspector = {
     dateLabel: selectedDay.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }),
     subtext: selectedItems.length
-      ? [dueCount ? `${dueCount} due` : '', eventCount ? `${eventCount} event${eventCount > 1 ? 's' : ''}` : '']
+      ? [
+          dueCount ? `${dueCount} due` : '',
+          classCount ? `${classCount} class${classCount > 1 ? 'es' : ''}` : '',
+          eventCount ? `${eventCount} event${eventCount > 1 ? 's' : ''}` : ''
+        ]
           .filter(Boolean)
           .join(', ') + ' on this day.'
       : 'Nothing scheduled on this day.',
@@ -135,7 +162,7 @@ export const CalendarView: React.FC = () => {
 
   const shiftMonth = (delta: number) =>
     setViewMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
-  const hasSchoolCalendar = deadlines.some((d) => d.source === 'ics');
+  const hasSchoolCalendar = deadlines.some((d) => String(d.source).startsWith('ics'));
 
   return (
     <div className="flex flex-col w-full gap-5">
@@ -414,6 +441,17 @@ export const CalendarView: React.FC = () => {
                     <span className="font-label-micro text-label-micro text-[#64748B] uppercase font-medium">
                       {item.weightOrStatus}
                     </span>
+                    {item.edit && (
+                      <button
+                        type="button"
+                        onClick={() => setEditItem(item.edit!)}
+                        title="Moved or cancelled?"
+                        aria-label={`Change ${item.title}`}
+                        className="px-2 py-1.5 rounded-xl bg-white border border-[#E2E8F0] hover:bg-slate-100 text-[#475569]"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">edit_calendar</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleAction(item)}
@@ -442,6 +480,7 @@ export const CalendarView: React.FC = () => {
           </div>
         </div>
       </div>
+      <ChangeItemModal item={editItem} onClose={() => setEditItem(null)} />
     </div>
   );
 };

@@ -181,7 +181,7 @@ export const translations = {
     more_tab_facilities: 'Campus Facilities',
     more_tab_notifications: 'Notifications',
     more_tab_storage: 'Storage & Data',
-    more_tab_compliance: 'Privacy & FERPA',
+    more_tab_compliance: 'Privacy & PDPA',
 
     // Language Section
     more_lang_title: 'UI Language Switcher',
@@ -605,7 +605,7 @@ export const translations = {
     more_tab_facilities: 'வளாக வசதிகள்',
     more_tab_notifications: 'அறிவிப்புகள்',
     more_tab_storage: 'சேமிப்பகம் & தரவு',
-    more_tab_compliance: 'தனியுரிமை & FERPA',
+    more_tab_compliance: 'தனியுரிமை & PDPA',
 
     // Language Section
     more_lang_title: 'இடைமுக மொழி மாற்றி (Language Switcher)',
@@ -817,7 +817,7 @@ export const translations = {
     more_tab_facilities: 'Campuseinrichtungen',
     more_tab_notifications: 'Benachrichtigungen',
     more_tab_storage: 'Speicher & Daten',
-    more_tab_compliance: 'Datenschutz & FERPA',
+    more_tab_compliance: 'Datenschutz & PDPA',
 
     // Language Section
     more_lang_title: 'UI-Sprachauswahl (Language Switcher)',
