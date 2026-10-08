@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { prepareImage, type PickedImage } from '../lib/image';
 import { supabase, EventItem } from '../lib/supabase';
 import { invokeEdge, EdgeError } from '../lib/edge';
 import { changeClass, changeDeadline, fmtWhen } from '../lib/changes';
@@ -17,41 +18,6 @@ type Preview = {
   date_evidence: string | null;
   warnings: string[];
 };
-
-type PickedImage = { data: string; media_type: string; preview: string; name: string };
-
-/** Phone photos are huge: shrink to max 1600px JPEG before sending. PDFs pass through. */
-async function prepareImage(file: File): Promise<PickedImage> {
-  const readAsDataUrl = (blob: Blob) =>
-    new Promise<string>((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(String(r.result));
-      r.onerror = () => reject(new Error('Could not read the file.'));
-      r.readAsDataURL(blob);
-    });
-
-  if (file.type === 'application/pdf') {
-    if (file.size > 5_000_000) throw new Error('That PDF is too large (max 5 MB).');
-    const url = await readAsDataUrl(file);
-    return { data: url.split(',')[1], media_type: 'application/pdf', preview: '', name: file.name };
-  }
-  if (!file.type.startsWith('image/')) throw new Error('Choose a photo, screenshot or PDF.');
-
-  const url = await readAsDataUrl(file);
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const el = new Image();
-    el.onload = () => resolve(el);
-    el.onerror = () => reject(new Error("Couldn't open that image. Try a screenshot instead."));
-    el.src = url;
-  });
-  const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(img.naturalWidth * scale);
-  canvas.height = Math.round(img.naturalHeight * scale);
-  canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-  const jpeg = canvas.toDataURL('image/jpeg', 0.85);
-  return { data: jpeg.split(',')[1], media_type: 'image/jpeg', preview: jpeg, name: file.name || 'image' };
-}
 
 const fmtDate = (iso?: string | null) =>
   iso
@@ -334,9 +300,20 @@ export const EventsScreen: React.FC = () => {
                   )}
                 </div>
                 {ev.registration_deadline && !registered && (
-                  <span className="w-fit px-2.5 py-1 rounded-full bg-[#3A2A10] text-[#F2A93B] text-xs font-bold flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">schedule</span>
-                    Register by {fmtDate(ev.registration_deadline)}
+                  <span className="flex items-center gap-2 flex-wrap">
+                    <span className="w-fit px-2.5 py-1 rounded-full bg-[#3A2A10] text-[#F2A93B] text-xs font-bold flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">schedule</span>
+                      Register by {fmtDate(ev.registration_deadline)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleEventRegister(ev.id)}
+                      title="I've registered. Hide this reminder."
+                      className="px-2 py-0.5 rounded-lg border border-[#C9D1DB] text-xs font-semibold text-[#0E0E12] hover:border-emerald-500 hover:text-emerald-700 flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">check</span>
+                      Done
+                    </button>
                   </span>
                 )}
                 <div className="flex items-center gap-2 flex-wrap mt-auto pt-1">
@@ -347,19 +324,9 @@ export const EventsScreen: React.FC = () => {
                       rel="noreferrer"
                       className="px-3 py-1.5 rounded-xl bg-[#7C5CFF] text-white text-xs font-bold"
                     >
-                      Open registration
+                      Sign up
                     </a>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => toggleEventRegister(ev.id)}
-                    aria-pressed={registered}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border ${
-                      registered ? 'bg-[#F3F0FF] border-[#7C5CFF] text-[#6D28D9]' : 'bg-white border-[#C9D1DB] text-[#0E0E12]'
-                    }`}
-                  >
-                    {registered ? '✓ Registered' : "I've registered"}
-                  </button>
                   <button
                     type="button"
                     onClick={() => toggleEventReminder(ev.id)}

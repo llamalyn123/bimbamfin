@@ -734,7 +734,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setUserEventInterests(prev => ({ ...prev, [eventId]: !nextVal }));
       showToast(`Couldn't save: ${err}`);
     } else {
-      showToast(nextVal ? 'Marked as registered' : 'Marked as not registered');
+      showToast(nextVal ? 'Done. Register-by reminder hidden.' : 'Register-by reminder back on');
     }
   };
 

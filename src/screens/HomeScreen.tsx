@@ -102,7 +102,7 @@ export const HomeScreen: React.FC = () => {
   // competitions, performances) + registration deadlines. Classes/lectures and weekly
   // CCA sessions live in the calendar, never here. Exams go in the countdown above.
   const KEY_EVENT = /\b(hackathon|audition|try-?outs?|competition|case comp|pitch|showcase|performance|recital|concert|interview|submission|deadline)\b/i;
-  type DueItem = { key: string; kind: 'deadline' | 'event' | 'register'; title: string; tag: string; when: string; badge: string; onOpen: () => void; sub: string };
+  type DueItem = { key: string; eventId?: string; kind: 'deadline' | 'event' | 'register'; title: string; tag: string; when: string; badge: string; onOpen: () => void; sub: string };
   const dueSoon: DueItem[] = [
     ...deadlines
       .filter((d) => !isDone(d.status) && !(examSoon.length && isExam(d)))
@@ -122,7 +122,7 @@ export const HomeScreen: React.FC = () => {
       .flatMap((e) => {
         const out: DueItem[] = [];
         if (e.registration_deadline && !userEventInterests[e.id] && new Date(e.registration_deadline).getTime() > Date.now()) {
-          out.push({ key: `r-${e.id}`, kind: 'register', title: `Register: ${e.title}`, tag: 'Event', when: e.registration_deadline, badge: 'Register', sub: e.location || 'Event', onOpen: () => setActiveScreen('events') });
+          out.push({ key: `r-${e.id}`, eventId: e.id, kind: 'register', title: `Register: ${e.title}`, tag: 'Event', when: e.registration_deadline, badge: 'Register', sub: e.location || 'Event', onOpen: () => setActiveScreen('events') });
         }
         const text = `${e.title} ${(e.interest_tags || []).join(' ')} ${e.description || ''}`;
         if (KEY_EVENT.test(text) && new Date(e.event_date).getTime() > Date.now()) {
@@ -464,13 +464,11 @@ export const HomeScreen: React.FC = () => {
                   dueSoon.slice(0, 5).map((item) => {
                     const rel = relDue(item.when);
                     return (
-                      <button
-                        type="button"
+                      <div
                         key={item.key}
-                        onClick={item.onOpen}
-                        className="group w-full text-left flex items-center justify-between py-3 hover:bg-[#F8FAFC] px-1 rounded-lg transition-colors cursor-pointer"
+                        className="group w-full flex items-center justify-between py-3 hover:bg-[#F8FAFC] px-1 rounded-lg transition-colors"
                       >
-                        <div className="flex items-center gap-3 min-w-0">
+                        <button type="button" onClick={item.onOpen} className="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer">
                           <span className="material-symbols-outlined text-[18px] text-[#B45309] shrink-0" aria-hidden="true">
                             {item.kind === 'deadline' ? 'flag' : item.kind === 'register' ? 'how_to_reg' : 'celebration'}
                           </span>
@@ -484,12 +482,25 @@ export const HomeScreen: React.FC = () => {
                               {new Date(item.when).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                             </span>
                           </div>
-                        </div>
+                        </button>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
                           <span className={`px-2.5 py-0.5 rounded-full font-label-tabular text-label-micro font-bold ${rel.cls}`}>{rel.text}</span>
-                          <span className="material-symbols-outlined text-[18px] text-[#94A3B8] group-hover:translate-x-1 transition-transform">chevron_right</span>
+                          {item.kind === 'register' && item.eventId ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleEventRegister(item.eventId!)}
+                              title="I've registered. Hide this."
+                              aria-label={`Done: registered for ${item.title}`}
+                              className="px-2 py-0.5 rounded-lg border border-[#C9D1DB] text-xs font-semibold text-[#0E0E12] hover:border-emerald-500 hover:text-emerald-700 flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">check</span>
+                              Done
+                            </button>
+                          ) : (
+                            <span className="material-symbols-outlined text-[18px] text-[#94A3B8] group-hover:translate-x-1 transition-transform">chevron_right</span>
+                          )}
                         </div>
-                      </button>
+                      </div>
                     );
                   })
                 )}
@@ -616,20 +627,17 @@ export const HomeScreen: React.FC = () => {
                   )}
 
                   <div className="flex items-center gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => toggleEventRegister(ev.id)}
-                      className={`flex-1 py-2.5 px-4 rounded-xl font-headline-sm text-body-sm font-semibold transition-all transform active:scale-95 text-center flex items-center justify-center gap-1.5 shadow-xs cursor-pointer ${
-                        isRegistered
-                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                          : 'bg-[#4F46E5] hover:bg-[#4338CA] text-white'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-[16px]">
-                        {isRegistered ? 'check_circle' : 'how_to_reg'}
-                      </span>
-                      <span>{isRegistered ? t('events_registered_badge', 'Registered ✓') : t('events_register_btn', 'RSVP / Register')}</span>
-                    </button>
+                    {ev.registration_url && (
+                      <a
+                        href={ev.registration_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 py-2.5 px-4 rounded-xl text-body-sm font-semibold text-center flex items-center justify-center gap-1.5 bg-[#4F46E5] hover:bg-[#4338CA] text-white shadow-xs"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                        <span>Sign up</span>
+                      </a>
+                    )}
 
                     <button
                       type="button"

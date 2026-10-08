@@ -13,7 +13,6 @@ import {
   Bell,
   CheckCircle2,
   ExternalLink,
-  Trash2,
   RefreshCw,
   LogOut,
   Moon,
@@ -51,9 +50,6 @@ export const MoreScreen: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'account' | 'language' | 'lms' | 'facilities' | 'notifications' | 'storage' | 'compliance'>('account');
   const [autoSyncLms, setAutoSyncLms] = useState(true);
-  const [deadlineAlerts, setDeadlineAlerts] = useState(true);
-  const [eventRecommendations, setEventRecommendations] = useState(true);
-  const [cacheCleared, setCacheCleared] = useState(false);
   const [isUpdatingUni, setIsUpdatingUni] = useState(false);
 
   // If university changes to independent, ensure tab reverts away from institutional-only features
@@ -70,16 +66,6 @@ export const MoreScreen: React.FC = () => {
     } finally {
       setIsUpdatingUni(false);
     }
-  };
-
-  const handleClearLocalCache = () => {
-    localStorage.removeItem('nocturne_deadlines_cache');
-    localStorage.removeItem('nocturne_events_cache');
-    localStorage.removeItem('nocturne_notes_cache');
-    localStorage.removeItem('nocturne_sources_cache');
-    localStorage.removeItem('nocturne_quiz_cache');
-    setCacheCleared(true);
-    setTimeout(() => setCacheCleared(false), 3000);
   };
 
   const currentUni = currentUser?.university || 'independent';
@@ -198,7 +184,7 @@ export const MoreScreen: React.FC = () => {
               }`}
             >
               <Bell className="w-4 h-4 shrink-0" />
-              <span>{t('more_tab_notifications', 'Notifications')}</span>
+              <span>Reminders</span>
             </button>
 
             <button
@@ -210,7 +196,7 @@ export const MoreScreen: React.FC = () => {
               }`}
             >
               <HardDrive className="w-4 h-4 shrink-0" />
-              <span>{t('more_tab_storage', 'Storage & Data')}</span>
+              <span>Your data</span>
             </button>
 
             <button
@@ -541,48 +527,6 @@ export const MoreScreen: React.FC = () => {
                     </button>
                   </div>
                 )}
-                <div className="p-4 rounded-xl bg-slate-50 border border-gray-200 space-y-3">
-                  <span className="text-xs font-bold text-gray-900 uppercase tracking-wider font-mono block">
-                    Live UI Text Demonstration ({SUPPORTED_LANGUAGES.find(l => l.code === language)?.nativeName})
-                  </span>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                    <div className="p-2.5 bg-white rounded-lg border border-gray-200">
-                      <span className="text-[10px] text-gray-400 uppercase block font-mono">nav_today</span>
-                      <span className="font-semibold text-gray-900">{t('nav_today')}</span>
-                    </div>
-                    <div className="p-2.5 bg-white rounded-lg border border-gray-200">
-                      <span className="text-[10px] text-gray-400 uppercase block font-mono">nav_calendar</span>
-                      <span className="font-semibold text-gray-900">{t('nav_calendar')}</span>
-                    </div>
-                    <div className="p-2.5 bg-white rounded-lg border border-gray-200">
-                      <span className="text-[10px] text-gray-400 uppercase block font-mono">nav_matrix</span>
-                      <span className="font-semibold text-gray-900">{t('nav_matrix')}</span>
-                    </div>
-                    <div className="p-2.5 bg-white rounded-lg border border-gray-200">
-                      <span className="text-[10px] text-gray-400 uppercase block font-mono">nav_notes</span>
-                      <span className="font-semibold text-gray-900">{t('nav_notes')}</span>
-                    </div>
-                    <div className="p-2.5 bg-white rounded-lg border border-gray-200">
-                      <span className="text-[10px] text-gray-400 uppercase block font-mono">nav_quiz</span>
-                      <span className="font-semibold text-gray-900">{t('nav_quiz')}</span>
-                    </div>
-                    <div className="p-2.5 bg-white rounded-lg border border-gray-200">
-                      <span className="text-[10px] text-gray-400 uppercase block font-mono">nav_events</span>
-                      <span className="font-semibold text-gray-900">{t('nav_events')}</span>
-                    </div>
-                    <div className="p-2.5 bg-white rounded-lg border border-gray-200">
-                      <span className="text-[10px] text-gray-400 uppercase block font-mono">home_mark_complete</span>
-                      <span className="font-semibold text-gray-900">{t('home_mark_complete')}</span>
-                    </div>
-                    <div className="p-2.5 bg-white rounded-lg border border-gray-200">
-                      <span className="text-[10px] text-gray-400 uppercase block font-mono">matrix_add_deadline_btn</span>
-                      <span className="font-semibold text-gray-900">{t('matrix_add_deadline_btn')}</span>
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-gray-500 font-mono">
-                    ✓ {t('more_lang_saved_notice', 'Language preference persists automatically across sessions.')}
-                  </p>
-                </div>
               </div>
             )}
 
@@ -592,40 +536,56 @@ export const MoreScreen: React.FC = () => {
             {/* CAMPUS FACILITIES: public info + the student's own bookings */}
             {activeTab === 'facilities' && <CampusFacilities />}
 
-            {/* NOTIFICATIONS TAB */}
+            {/* REMINDERS TAB: how reminders actually reach the student */}
             {activeTab === 'notifications' && (
-              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-xs space-y-6">
+              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-xs space-y-5">
                 <div>
-                  <h2 className="text-base font-bold text-gray-900 font-display">Notification Preferences</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">Tune deadline countdown warnings and campus event notifications.</p>
+                  <h2 className="text-base font-bold text-gray-900 font-display">Reminders</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Bimbam sends reminders through your phone's own calendar, so they arrive even when the app is closed.
+                  </p>
                 </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                    <div>
-                      <p className="text-xs font-bold text-gray-800">Deadline Escalation (24h / 6h / 1h)</p>
-                      <p className="text-[11px] text-gray-500">Receive progressive browser reminders when high-weight exams or problem sets approach.</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={deadlineAlerts}
-                      onChange={(e) => setDeadlineAlerts(e.target.checked)}
-                      className="rounded text-[#363FEF] focus:ring-[#363FEF] w-4 h-4 cursor-pointer"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                    <div>
-                      <p className="text-xs font-bold text-gray-800">Campus Events & Recruiter Coffee Chats</p>
-                      <p className="text-[11px] text-gray-500">Alert for industry recruiter visits (VC, Quant, Consulting) matching your curriculum tags.</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={eventRecommendations}
-                      onChange={(e) => setEventRecommendations(e.target.checked)}
-                      className="rounded text-[#363FEF] focus:ring-[#363FEF] w-4 h-4 cursor-pointer"
-                    />
-                  </div>
+                <ul className="space-y-3 text-xs text-gray-700">
+                  <li className="flex gap-3">
+                    <span className="material-symbols-outlined text-[18px] text-[#B45309]">flag</span>
+                    <span>
+                      <span className="font-bold text-gray-900 block">Deadlines</span>
+                      1 day and 2 hours before. Ticked-off deadlines stop reminding.
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="material-symbols-outlined text-[18px] text-[#BE185D]">celebration</span>
+                    <span>
+                      <span className="font-bold text-gray-900 block">Events you add</span>
+                      1 day before, or the time you pick with the bell. Register-by dates remind you until you tap Done.
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="material-symbols-outlined text-[18px] text-[#4F46E5]">meeting_room</span>
+                    <span>
+                      <span className="font-bold text-gray-900 block">Bookings</span>
+                      The time you chose when adding it (30 min, 1 hour or 1 day before).
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="material-symbols-outlined text-[18px] text-[#0EA5E9]">send</span>
+                    <span>
+                      <span className="font-bold text-gray-900 block">Telegram groups</span>
+                      Type /due in a group with the Bimbam bot to see what's due for that group.
+                    </span>
+                  </li>
+                </ul>
+                <div className="p-4 rounded-xl bg-[#FEF3C7] border border-[#FDE68A] flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                  <p className="text-xs text-[#0E0E12]">
+                    <span className="font-bold">Not getting reminders?</span> Add Bimbam to your phone calendar once. It updates by itself.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('lms')}
+                    className="px-3 py-1.5 rounded-lg bg-[#D4A94F] hover:bg-[#c7993a] text-[#0E0E12] text-xs font-bold shrink-0 cursor-pointer"
+                  >
+                    Set up phone calendar
+                  </button>
                 </div>
               </div>
             )}
@@ -634,23 +594,8 @@ export const MoreScreen: React.FC = () => {
             {activeTab === 'storage' && (
               <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-xs space-y-6">
                 <div>
-                  <h2 className="text-base font-bold text-gray-900 font-display">Supabase Live Connection & Cache</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">Direct connection to the remote PostgreSQL cluster hosting your academic repository.</p>
-                </div>
-
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 font-mono text-xs space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Supabase Endpoint:</span>
-                    <span className="text-gray-900 font-medium">https://xxlbvcwyicddkjbzbtvu.supabase.co</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Active Tables:</span>
-                    <span className="text-emerald-700 font-semibold">profiles, deadlines, events, sources, notes, quizzes, user_event_interest, quotes</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Affiliation Profile:</span>
-                    <span className="text-indigo-700 font-semibold">{currentUni} (in profiles table)</span>
-                  </div>
+                  <h2 className="text-base font-bold text-gray-900 font-display">Your data</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">What's saved in your Bimbam account. Download or learn more in Privacy & PDPA.</p>
                 </div>
 
                 {/* Data Statistics */}
@@ -673,18 +618,6 @@ export const MoreScreen: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-2 flex items-center justify-between">
-                  <button
-                    onClick={handleClearLocalCache}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 transition cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Reset Local Storage Cache</span>
-                  </button>
-                  {cacheCleared && (
-                    <span className="text-xs text-emerald-600 font-medium">Local storage cache cleared!</span>
-                  )}
-                </div>
               </div>
             )}
 

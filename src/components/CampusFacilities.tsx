@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { invokeEdge } from '../lib/edge';
+import { prepareImage, type PickedImage } from '../lib/image';
 
 type Facility = {
   id: number;
@@ -102,7 +103,9 @@ export const CampusFacilities: React.FC = () => {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [text, setText] = useState('');
   const [reading, setReading] = useState(false);
-  const [preview, setPreview] = useState<BookingPreview | null>(null);
+  const [image, setImage] = useState<PickedImage | null>(null);
+  const [previews, setPreviews] = useState<(BookingPreview & { keep: boolean })[] | null>(null);
+  const [adding, setAdding] = useState(false);
   const [remind, setRemind] = useState('30 min');
   const [error, setError] = useState<string | null>(null);
 
@@ -141,42 +144,73 @@ export const CampusFacilities: React.FC = () => {
     if (err) showToast(`Couldn't save favourite: ${err.message}`);
   };
 
+  const closePaste = () => {
+    setPasteOpen(false);
+    setText('');
+    setImage(null);
+    setPreviews(null);
+    setError(null);
+  };
+
+  const pickImage = async (file?: File | null) => {
+    if (!file) return;
+    setError(null);
+    try {
+      setImage(await prepareImage(file));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
   const readBooking = async () => {
     setReading(true);
     setError(null);
-    const { data, error: err } = await invokeEdge('extract-event', { text, kind: 'booking' });
+    const body: Record<string, unknown> = { kind: 'booking' };
+    if (text.trim()) body.text = text.trim();
+    if (image) body.image = { data: image.data, media_type: image.media_type };
+    const { data, error: err } = await invokeEdge('extract-event', body);
     setReading(false);
     if (err) return setError(err.message);
-    setPreview((data.events || [])[0] || null);
-    if (!data.events?.length) setError("Couldn't find a booking date and time in that message.");
+    const list = (data?.events || []) as BookingPreview[];
+    if (!list.length) return setError("Couldn't find a booking date and time in that confirmation.");
+    setPreviews(list.map((p) => ({ ...p, keep: true })));
   };
 
-  const addBooking = async () => {
-    if (!preview || !currentUser?.id) return;
-    const { data, error: err } = await supabase
-      .from('events')
-      .insert({
-        title: preview.title,
-        event_date: preview.event_date,
-        end_date: preview.end_date,
-        location: preview.location || '',
-        source: 'booking',
-        created_by: currentUser.id
-      })
-      .select('id')
-      .single();
-    if (err) return showToast(`Couldn't add: ${err.message}`);
-    await supabase.from('user_event_interest').insert({
-      user_id: currentUser.id,
-      event_id: data.id,
-      reminder_set: remind !== 'none',
-      reminder_timing: remind === 'none' ? null : remind,
-      registered: true
-    });
-    showToast('Booking added to your calendar');
-    setPasteOpen(false);
-    setText('');
-    setPreview(null);
+  const addBookings = async () => {
+    if (!previews || !currentUser?.id) return;
+    const chosen = previews.filter((p) => p.keep);
+    if (!chosen.length) return;
+    setAdding(true);
+    let ok = 0;
+    for (const p of chosen) {
+      const { data, error: err } = await supabase
+        .from('events')
+        .insert({
+          title: p.title,
+          event_date: p.event_date,
+          end_date: p.end_date,
+          location: p.location || '',
+          source: 'booking',
+          created_by: currentUser.id
+        })
+        .select('id')
+        .single();
+      if (err) {
+        showToast(`Couldn't add "${p.title}": ${err.message}`);
+        continue;
+      }
+      await supabase.from('user_event_interest').insert({
+        user_id: currentUser.id,
+        event_id: data.id,
+        reminder_set: remind !== 'none',
+        reminder_timing: remind === 'none' ? null : remind,
+        registered: true
+      });
+      ok++;
+    }
+    setAdding(false);
+    if (ok) showToast(`${ok} booking${ok === 1 ? '' : 's'} added to your calendar`);
+    closePaste();
     await refreshFromSupabase();
   };
 
@@ -263,35 +297,63 @@ export const CampusFacilities: React.FC = () => {
       )}
 
       {pasteOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setPasteOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={closePaste}>
           <div
             role="dialog"
             aria-label="Add a booking"
-            className="w-full max-w-lg bg-white rounded-t-2xl sm:rounded-2xl p-5 flex flex-col gap-3"
+            className="w-full max-w-lg bg-white rounded-t-2xl sm:rounded-2xl p-5 flex flex-col gap-3 max-h-[92vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-lg font-bold text-gray-900">Add a booking</h2>
-            {!preview ? (
+            {!previews ? (
               <>
                 <p className="text-xs text-gray-500">
-                  Paste your booking confirmation. Only the place, date and time are kept; booking references and the rest
-                  of the message are discarded.
+                  Paste your booking confirmation, or add a screenshot of it. Tables work, and so do several bookings at once.
+                  Only the place, date and time are kept; booking references and the rest are discarded.
                 </p>
                 <textarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  rows={6}
+                  rows={5}
+                  placeholder="Paste the confirmation here"
                   aria-label="Booking confirmation text"
                   className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm focus:outline-none focus:border-[#D4A94F]"
                 />
+                {image ? (
+                  <div className="flex items-center gap-3 p-2 rounded-xl border border-gray-200">
+                    {image.preview ? (
+                      <img src={image.preview} alt="" className="w-14 h-14 object-cover rounded-lg" />
+                    ) : (
+                      <span className="material-symbols-outlined text-[28px] text-gray-500">picture_as_pdf</span>
+                    )}
+                    <span className="text-sm text-gray-800 truncate flex-1">{image.name}</span>
+                    <button type="button" onClick={() => setImage(null)} className="text-xs text-gray-500 hover:text-red-600">
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-gray-300 hover:border-[#D4A94F] text-sm font-semibold text-gray-700 cursor-pointer">
+                    <span className="material-symbols-outlined text-[18px]">add_photo_alternate</span>
+                    Add a screenshot or PDF
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="sr-only"
+                      onChange={(e) => {
+                        pickImage(e.target.files?.[0]);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                )}
                 {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
                 <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setPasteOpen(false)} className="px-4 py-2 rounded-xl border border-gray-300 text-sm font-semibold">
+                  <button type="button" onClick={closePaste} className="px-4 py-2 rounded-xl border border-gray-300 text-sm font-semibold">
                     Cancel
                   </button>
                   <button
                     type="button"
-                    disabled={reading || text.trim().length < 30}
+                    disabled={reading || (!image && text.trim().length < 30)}
                     onClick={readBooking}
                     className="px-4 py-2 rounded-xl bg-[#D4A94F] hover:bg-[#c7993a] text-[#0E0E12] text-sm font-bold disabled:opacity-50"
                   >
@@ -300,16 +362,31 @@ export const CampusFacilities: React.FC = () => {
                 </div>
               </>
             ) : (
-              <div className="rounded-xl border border-gray-200 p-4 flex flex-col gap-1.5">
-                <p className="font-semibold text-gray-900">{preview.title}</p>
-                {preview.location && <p className="text-sm text-gray-700">{preview.location}</p>}
-                <p className="text-sm text-gray-900">
-                  {new Date(preview.event_date).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
-                  {preview.end_date ? `–${new Date(preview.end_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-gray-500">
+                  Found {previews.length} booking{previews.length === 1 ? '' : 's'}. Check each date against the original, untick any you don't want.
                 </p>
-                {preview.date_evidence && <p className="text-xs text-gray-500">From the message: “{preview.date_evidence}”</p>}
-                {preview.warnings.map((w) => (
-                  <p key={w} className="text-xs text-[#92400E]">⚠ {w}</p>
+                {previews.map((p, i) => (
+                  <label key={i} className={`rounded-xl border p-3 flex gap-3 cursor-pointer ${p.keep ? 'border-[#D4A94F]' : 'border-gray-200 opacity-60'}`}>
+                    <input
+                      type="checkbox"
+                      checked={p.keep}
+                      onChange={(e) => setPreviews((ps) => ps!.map((x, j) => (j === i ? { ...x, keep: e.target.checked } : x)))}
+                      className="mt-1 w-4 h-4"
+                    />
+                    <span className="flex flex-col gap-1 min-w-0">
+                      <span className="font-semibold text-gray-900">{p.title}</span>
+                      {p.location && <span className="text-sm text-gray-700">{p.location}</span>}
+                      <span className="text-sm text-gray-900">
+                        {new Date(p.event_date).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                        {p.end_date ? `–${new Date(p.end_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
+                      </span>
+                      {p.date_evidence && <span className="text-xs text-gray-500">From the confirmation: “{p.date_evidence}”</span>}
+                      {p.warnings.map((w) => (
+                        <span key={w} className="text-xs text-[#92400E]">⚠ {w}</span>
+                      ))}
+                    </span>
+                  </label>
                 ))}
                 <label className="text-xs font-semibold text-gray-900 flex items-center gap-2 mt-1">
                   Remind me
@@ -321,11 +398,16 @@ export const CampusFacilities: React.FC = () => {
                   </select>
                 </label>
                 <div className="flex justify-end gap-2 pt-2">
-                  <button type="button" onClick={() => setPreview(null)} className="px-4 py-2 rounded-xl border border-gray-300 text-sm font-semibold">
+                  <button type="button" onClick={() => setPreviews(null)} className="px-4 py-2 rounded-xl border border-gray-300 text-sm font-semibold">
                     Back
                   </button>
-                  <button type="button" onClick={addBooking} className="px-4 py-2 rounded-xl bg-[#D4A94F] hover:bg-[#c7993a] text-[#0E0E12] text-sm font-bold">
-                    Add
+                  <button
+                    type="button"
+                    disabled={adding || !previews.some((p) => p.keep)}
+                    onClick={addBookings}
+                    className="px-4 py-2 rounded-xl bg-[#D4A94F] hover:bg-[#c7993a] text-[#0E0E12] text-sm font-bold disabled:opacity-50"
+                  >
+                    {adding ? 'Adding…' : `Add ${previews.filter((p) => p.keep).length}`}
                   </button>
                 </div>
               </div>
