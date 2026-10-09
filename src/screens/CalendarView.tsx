@@ -69,7 +69,7 @@ export const CalendarView: React.FC = () => {
       add(d, {
         id: `e-${ev.id}`,
         category: 'Event',
-        categoryBadge: ev.source === 'booking' ? 'Booking' : 'Event',
+        categoryBadge: ev.source === 'booking' ? 'Booking' : ev.source === 'group' ? 'Meeting' : 'Event',
         time: fmtTime(d),
         courseOrHost: ev.source || '',
         title: ev.title,
@@ -133,8 +133,8 @@ export const CalendarView: React.FC = () => {
             const shortTime = new Date(x.dateMs).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(':00', '').replace(' ', '').toLowerCase();
             if (x.category === 'Class') return { kind: 'class', icon: 'school', text: `${shortTime} ${code || x.title}`, full: `${x.time} · ${x.title}${x.subtitle ? ` · ${x.subtitle}` : ''}` };
             if (x.category === 'Event') {
-              const booking = x.categoryBadge === 'Booking';
-              return { kind: booking ? 'booking' : 'event', icon: booking ? 'meeting_room' : 'celebration', text: `${shortTime} ${x.title.replace(/^Booking:\s*/, '')}`, full: `${x.time} · ${x.title}${x.subtitle ? ` · ${x.subtitle}` : ''}` };
+              const booking = x.categoryBadge === 'Booking' || x.categoryBadge === 'Meeting';
+              return { kind: booking ? 'booking' : 'event', icon: x.categoryBadge === 'Meeting' ? 'groups' : booking ? 'meeting_room' : 'celebration', text: `${shortTime} ${x.title.replace(/^Booking:\s*/, '')}`, full: `${x.time} · ${x.title}${x.subtitle ? ` · ${x.subtitle}` : ''}` };
             }
             return { kind: 'due', icon: 'flag', text: `Due ${code || x.title}`, full: `Due ${x.time} · ${x.title}${code ? ` (${x.courseOrHost})` : ''}` };
           })

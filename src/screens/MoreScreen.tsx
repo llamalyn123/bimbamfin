@@ -571,7 +571,7 @@ export const MoreScreen: React.FC = () => {
                     <span className="material-symbols-outlined text-[18px] text-[#0EA5E9]">send</span>
                     <span>
                       <span className="font-bold text-gray-900 block">Telegram groups</span>
-                      Type /due in a group with the Bimbam bot to see what's due for that group.
+                      In a group with the Bimbam bot, /due adds a deadline for everyone who joined, e.g. /due Slides draft Fri 6pm. It lands in each member's Bimbam, so it reminds them like any other deadline.
                     </span>
                   </li>
                 </ul>
@@ -641,8 +641,8 @@ export const MoreScreen: React.FC = () => {
                   </p>
                   <p>
                     <span className="font-semibold text-gray-900">AI processing:</span> when you tap Generate, Quiz, Go deeper or
-                    paste a message, that content is sent to Google's Gemini service to produce the result. On the free tier Google
-                    may use it to improve its models, so don't upload other people's personal data.
+                    paste a message, that content is sent to the AI provider Bimbam uses to produce the result. Depending on the
+                    provider's terms it may be kept or used to improve their models, so don't upload other people's personal data.
                   </p>
                   <p>
                     <span className="font-semibold text-gray-900">Telegram (if you connect it):</span> we store your Telegram
