@@ -1,3 +1,4 @@
+import { isDeadlineEvent } from '../lib/eventKinds';
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
@@ -69,7 +70,7 @@ export const CalendarView: React.FC = () => {
       add(d, {
         id: `e-${ev.id}`,
         category: 'Event',
-        categoryBadge: ev.source === 'booking' ? 'Booking' : ev.source === 'group' ? 'Meeting' : 'Event',
+        categoryBadge: ev.source === 'booking' ? 'Booking' : ev.source === 'group' ? 'Meeting' : isDeadlineEvent(ev) ? 'Deadline' : 'Event',
         time: fmtTime(d),
         courseOrHost: ev.source || '',
         title: ev.title,
@@ -113,8 +114,8 @@ export const CalendarView: React.FC = () => {
       const d = new Date(y, m, 1 - startOffset + i);
       const key = toKey(d);
       const items = itemsByDay[key] || [];
-      const dueItems = items.filter((x) => x.category === 'Assignment' || x.category === 'Quiz');
-      const eventItems = items.filter((x) => x.category === 'Event');
+      const dueItems = items.filter((x) => x.category === 'Assignment' || x.category === 'Quiz' || x.categoryBadge === 'Deadline');
+      const eventItems = items.filter((x) => x.category === 'Event' && x.categoryBadge !== 'Deadline');
       return {
         key,
         day: d.getDate(),
@@ -127,11 +128,14 @@ export const CalendarView: React.FC = () => {
         eventLabel: eventItems[0]?.title,
         // Compact, consistent chips: deadlines first, then by time
         chips: [...items]
-          .sort((a, b) => Number(b.category === 'Assignment' || b.category === 'Quiz') - Number(a.category === 'Assignment' || a.category === 'Quiz') || a.dateMs - b.dateMs)
+          .sort((a, b) => Number(b.category === 'Assignment' || b.category === 'Quiz' || b.categoryBadge === 'Deadline') - Number(a.category === 'Assignment' || a.category === 'Quiz' || a.categoryBadge === 'Deadline') || a.dateMs - b.dateMs)
           .map((x) => {
             const code = (x.courseOrHost || '').split(/\s+/)[0];
             const shortTime = new Date(x.dateMs).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(':00', '').replace(' ', '').toLowerCase();
             if (x.category === 'Class') return { kind: 'class', icon: 'school', text: `${shortTime} ${code || x.title}`, full: `${x.time} · ${x.title}${x.subtitle ? ` · ${x.subtitle}` : ''}` };
+            if (x.category === 'Event' && x.categoryBadge === 'Deadline') {
+              return { kind: 'due', icon: 'flag', text: `Due ${x.title}`, full: `Due ${x.time} · ${x.title}` };
+            }
             if (x.category === 'Event') {
               const booking = x.categoryBadge === 'Booking' || x.categoryBadge === 'Meeting';
               return { kind: booking ? 'booking' : 'event', icon: x.categoryBadge === 'Meeting' ? 'groups' : booking ? 'meeting_room' : 'celebration', text: `${shortTime} ${x.title.replace(/^Booking:\s*/, '')}`, full: `${x.time} · ${x.title}${x.subtitle ? ` · ${x.subtitle}` : ''}` };
@@ -162,8 +166,8 @@ export const CalendarView: React.FC = () => {
   };
 
   const filteredItems = currentInspector.items.filter((item) => {
-    if (filterType === 'deadlines') return item.category === 'Assignment' || item.category === 'Quiz';
-    if (filterType === 'events') return item.category === 'Event';
+    if (filterType === 'deadlines') return item.category === 'Assignment' || item.category === 'Quiz' || item.categoryBadge === 'Deadline';
+    if (filterType === 'events') return item.category === 'Event' && item.categoryBadge !== 'Deadline';
     return true;
   });
 

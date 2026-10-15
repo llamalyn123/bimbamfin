@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { prepareImage, type PickedImage } from '../lib/image';
+import { eventTags, tagLabel } from '../lib/eventKinds';
 import { supabase, EventItem } from '../lib/supabase';
 import { invokeEdge, EdgeError } from '../lib/edge';
 import { changeClass, changeDeadline, fmtWhen } from '../lib/changes';
@@ -105,8 +106,8 @@ export const EventsScreen: React.FC = () => {
         .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime()),
     [events, currentUser?.id, userEventInterests, reminders]
   );
-  const tags = ['All', ...Array.from(new Set(upcoming.flatMap((e) => e.interest_tags || []))).sort()];
-  const shown = tag === 'All' ? upcoming : upcoming.filter((e) => (e.interest_tags || []).includes(tag));
+  const tags = ['All', ...Array.from(new Set(upcoming.flatMap((e) => eventTags(e)))).sort((a, b) => (a === 'deadline' ? -1 : b === 'deadline' ? 1 : a.localeCompare(b)))];
+  const shown = tag === 'All' ? upcoming : upcoming.filter((e) => eventTags(e).includes(tag));
 
   const findEvents = async () => {
     setIsReading(true);
@@ -249,7 +250,7 @@ export const EventsScreen: React.FC = () => {
                 tag === tg ? 'bg-[#7C5CFF] text-white font-bold' : 'bg-white text-[#64748B] border border-[#C9D1DB] hover:bg-[#F8FAFC]'
               }`}
             >
-              {tg === 'All' ? 'All' : tg.charAt(0).toUpperCase() + tg.slice(1)}
+              {tagLabel(tg)}
             </button>
           ))}
         </div>

@@ -1,3 +1,4 @@
+import { isDeadlineEvent } from '../lib/eventKinds';
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { sourceLabel } from '../lib/labels';
@@ -102,7 +103,7 @@ export const HomeScreen: React.FC = () => {
   // competitions, performances) + registration deadlines. Classes/lectures and weekly
   // CCA sessions live in the calendar, never here. Exams go in the countdown above.
   const KEY_EVENT = /\b(hackathon|audition|try-?outs?|competition|case comp|pitch|showcase|performance|recital|concert|interview|submission|deadline)\b/i;
-  type DueItem = { key: string; eventId?: string; kind: 'deadline' | 'event' | 'register'; title: string; tag: string; when: string; badge: string; onOpen: () => void; sub: string };
+  type DueItem = { key: string; eventId?: string; kind: 'deadline' | 'event' | 'register' | 'eventdue'; title: string; tag: string; when: string; badge: string; onOpen: () => void; sub: string };
   const dueSoon: DueItem[] = [
     ...deadlines
       .filter((d) => !isDone(d.status) && !(examSoon.length && isExam(d)))
@@ -125,7 +126,12 @@ export const HomeScreen: React.FC = () => {
           out.push({ key: `r-${e.id}`, eventId: e.id, kind: 'register', title: `Register: ${e.title}`, tag: 'Event', when: e.registration_deadline, badge: 'Register', sub: e.location || 'Event', onOpen: () => setActiveScreen('events') });
         }
         const text = `${e.title} ${(e.interest_tags || []).join(' ')} ${e.description || ''}`;
-        if (KEY_EVENT.test(text) && new Date(e.event_date).getTime() > Date.now()) {
+        if (isDeadlineEvent(e)) {
+          // Course registration, add/drop, applications…: a deadline, tick Done to clear it
+          if (!userEventInterests[e.id] && new Date(e.event_date).getTime() > Date.now() - 864e5) {
+            out.push({ key: `ed-${e.id}`, eventId: e.id, kind: 'eventdue', title: e.title, tag: 'Deadline', when: e.event_date, badge: 'Deadline', sub: e.location || e.description || 'Added from Events', onOpen: () => setActiveScreen('events') });
+          }
+        } else if (KEY_EVENT.test(text) && new Date(e.event_date).getTime() > Date.now()) {
           out.push({ key: `e-${e.id}`, kind: 'event', title: e.title, tag: 'Event', when: e.event_date, badge: (text.match(KEY_EVENT)?.[1] || 'Event'), sub: e.location || 'Event', onOpen: () => setActiveScreen('events') });
         }
         return out;
@@ -470,7 +476,7 @@ export const HomeScreen: React.FC = () => {
                       >
                         <button type="button" onClick={item.onOpen} className="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer">
                           <span className="material-symbols-outlined text-[18px] text-[#B45309] shrink-0" aria-hidden="true">
-                            {item.kind === 'deadline' ? 'flag' : item.kind === 'register' ? 'how_to_reg' : 'celebration'}
+                            {item.kind === 'deadline' || item.kind === 'eventdue' ? 'flag' : item.kind === 'register' ? 'how_to_reg' : 'celebration'}
                           </span>
                           <div className="px-2 py-0.5 rounded bg-[#FEF3C7] border border-[#FDE68A] font-label-tabular text-label-micro text-[#B45309] font-bold shrink-0 max-w-[110px] truncate">
                             {item.tag}
@@ -485,7 +491,7 @@ export const HomeScreen: React.FC = () => {
                         </button>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
                           <span className={`px-2.5 py-0.5 rounded-full font-label-tabular text-label-micro font-bold ${rel.cls}`}>{rel.text}</span>
-                          {item.kind === 'register' && item.eventId ? (
+                          {(item.kind === 'register' || item.kind === 'eventdue') && item.eventId ? (
                             <button
                               type="button"
                               onClick={() => toggleEventRegister(item.eventId!)}
