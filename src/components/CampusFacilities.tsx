@@ -125,6 +125,49 @@ export const CampusFacilities: React.FC = () => {
     return () => clearInterval(timer);
   }, [currentUser?.id, uni]);
 
+  // the student's own bookings (added from confirmations or "Add a booking")
+  type MyBooking = { id: string; title: string; event_date: string; end_date: string | null; location: string | null };
+  const [bookings, setBookings] = useState<MyBooking[]>([]);
+  const [showPast, setShowPast] = useState(false);
+  const loadBookings = async () => {
+    if (!currentUser?.id) return;
+    const { data } = await supabase
+      .from('events')
+      .select('id,title,event_date,end_date,location')
+      .eq('source', 'booking')
+      .eq('created_by', currentUser.id)
+      .order('event_date', { ascending: true })
+      .limit(100);
+    setBookings((data ?? []) as MyBooking[]);
+  };
+  useEffect(() => {
+    loadBookings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
+  const isPast = (b: MyBooking) => new Date(b.end_date || b.event_date).getTime() < Date.now();
+  const upcoming = bookings.filter((b) => !isPast(b));
+  const past = bookings.filter(isPast).reverse();
+  const removeBooking = async (b: MyBooking) => {
+    if (!window.confirm(`Remove "${b.title}" from Bimbam? This doesn't cancel it on ${uni}'s booking site.`)) return;
+    const { error: err } = await supabase.from('events').delete().eq('id', b.id);
+    if (err) return showToast(`Couldn't remove: ${err.message}`);
+    setBookings((bs) => bs.filter((x) => x.id !== b.id));
+    showToast('Booking removed');
+    refreshFromSupabase();
+  };
+  const bookingName = (t: string) => t.replace(/^Booking:\s*/i, '');
+  const bookingWhen = (b: MyBooking) => {
+    const s = new Date(b.event_date);
+    const day = s.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+    const t = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return { day, time: b.end_date ? `${t(s)}–${t(new Date(b.end_date))}` : t(s) };
+  };
+  const daysAway = (iso: string) => {
+    const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const n = Math.round((startOf(new Date(iso)) - startOf(new Date())) / 86_400_000);
+    return n <= 0 ? 'Today' : n === 1 ? 'Tomorrow' : `In ${n} days`;
+  };
+
   const sorted = useMemo(
     () => [...facilities].sort((a, b) => Number(favs.has(b.id)) - Number(favs.has(a.id)) || a.sort - b.sort),
     [facilities, favs]
@@ -265,6 +308,7 @@ export const CampusFacilities: React.FC = () => {
     setAdding(false);
     if (ok) showToast(`${ok} booking${ok === 1 ? '' : 's'} added to your calendar`);
     closePaste();
+    loadBookings();
     await refreshFromSupabase();
   };
 
@@ -317,6 +361,59 @@ export const CampusFacilities: React.FC = () => {
           }}
         />
       </label>
+
+      <section aria-label="Your bookings" className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[18px] text-[#7C3AED]">meeting_room</span>
+            Your bookings
+            {upcoming.length > 0 && <span className="text-xs font-semibold text-gray-500">({upcoming.length} upcoming)</span>}
+          </h3>
+          {past.length > 0 && (
+            <button type="button" onClick={() => setShowPast((v) => !v)} className="text-xs font-semibold text-gray-500 hover:text-gray-900">
+              {showPast ? 'Hide past' : `Show past (${past.length})`}
+            </button>
+          )}
+        </div>
+        {upcoming.length === 0 && !showPast ? (
+          <p className="text-xs text-gray-500">No upcoming bookings. Drop a confirmation above and it shows up here and on your calendar.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {[...upcoming, ...(showPast ? past : [])].map((b) => {
+              const w = bookingWhen(b);
+              const old = isPast(b);
+              return (
+                <li
+                  key={b.id}
+                  className={`p-3 rounded-xl border border-gray-200 bg-gray-50 border-l-4 border-l-[#7C3AED] flex items-center gap-3 ${old ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex flex-col items-center justify-center w-14 shrink-0 text-center">
+                    <span className="text-[10px] font-bold uppercase text-[#7C3AED]">{w.day.split(' ')[0]}</span>
+                    <span className="text-lg font-bold text-gray-900 leading-none">{new Date(b.event_date).getDate()}</span>
+                    <span className="text-[10px] text-gray-500">{new Date(b.event_date).toLocaleDateString([], { month: 'short' })}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 truncate">{bookingName(b.title)}</p>
+                    <p className="text-xs text-gray-600">
+                      {w.time}
+                      {!old && <span className="ml-2 font-semibold text-[#7C3AED]">{daysAway(b.event_date)}</span>}
+                      {old && <span className="ml-2">Done</span>}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeBooking(b)}
+                    aria-label={`Remove ${bookingName(b.title)}`}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       {loading ? (
         <p className="text-xs text-gray-500">Loading…</p>
