@@ -14,12 +14,46 @@ type Brief = {
   decision: string;
   constraints?: string[];
   open_questions?: string[];
+  course_links?: { concept: string; where_in_case: string; page?: string }[];
 };
 type Turn = { role: 'user' | 'assistant'; content: string; data?: any };
 type Mode = 'brief' | 'chat' | 'coldcall' | 'frameworks';
 
 const Page: React.FC<{ p?: string }> = ({ p }) =>
   p ? <span className="ml-1 px-1.5 py-0.5 rounded bg-slate-100 border border-[#E2E8F0] text-[10px] font-semibold text-[#475569]">{p}</span> : null;
+
+/** "Week 5: Emotional intelligence" -> chip that opens that week's note. */
+const ConceptChip: React.FC<{ label: string; course: string; onOpen: () => void }> = ({ label, course, onOpen }) => {
+  const { setSelectedCourse, setSelectedWeek, setActiveScreen } = useApp();
+  const week = Number(label.match(/week\s*(\d+)/i)?.[1] ?? NaN);
+  return (
+    <button
+      type="button"
+      disabled={Number.isNaN(week)}
+      onClick={() => {
+        setSelectedCourse(course);
+        setSelectedWeek(week);
+        setActiveScreen('notes-detail');
+        onOpen();
+      }}
+      title={Number.isNaN(week) ? undefined : 'Open this week\'s note'}
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#C7D2FE] bg-[#EEF2FF] text-[11px] font-semibold text-[#3730A3] hover:border-[#4F46E5]"
+    >
+      <span className="material-symbols-outlined text-[12px]">school</span>
+      {label}
+    </button>
+  );
+};
+
+const ConceptRow: React.FC<{ items?: string[]; course: string; onOpen: () => void }> = ({ items, course, onOpen }) =>
+  items?.length ? (
+    <div className="flex flex-wrap gap-1 items-center">
+      <span className="text-[11px] text-[#64748B]">From your course:</span>
+      {items.map((c) => (
+        <ConceptChip key={c} label={c} course={course} onOpen={onOpen} />
+      ))}
+    </div>
+  ) : null;
 
 /** Full-screen case room: brief, discussion, cold-call practice, framework hints. */
 export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> = ({ item, onClose }) => {
@@ -142,7 +176,7 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-[#64748B]">Based only on this case (page refs shown). It won't write your analysis. Chats are saved to your account.</p>
+        <p className="text-[11px] text-[#64748B]">Based on this case (page refs shown) and your notes up to this week. It won't write your analysis. Chats are saved to your account.</p>
 
         <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-3 text-sm">
           {busy && <p className="text-xs text-[#64748B]">Reading the case…</p>}
@@ -155,6 +189,26 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
                 <p className="text-xs font-semibold text-[#0E0E12]">The decision</p>
                 <p className="text-[#1E293B]">{brief.decision}</p>
               </div>
+              {brief.course_links?.length ? (
+                <div className="p-3 rounded-xl border border-[#C7D2FE] bg-[#F5F7FF] flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-[#3730A3]">
+                    Links to your course{item.week ? ` (Week ${item.week} and earlier)` : ''}
+                  </p>
+                  {brief.course_links.map((l, i) => (
+                    <div key={i} className="flex flex-col gap-0.5">
+                      <ConceptChip label={l.concept} course={item.course} onOpen={onClose} />
+                      <p className="text-[#334155]">
+                        {l.where_in_case}
+                        <Page p={l.page} />
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-[#64748B]">
+                  Generate your {item.course} notes{item.week ? ` for Week ${item.week} and earlier` : ''} to see how this case links to what you've been taught.
+                </p>
+              )}
               <div>
                 <p className="text-xs font-semibold text-[#0E0E12]">Key facts</p>
                 <ul className="list-disc pl-5 text-[#334155]">
@@ -203,7 +257,7 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
             <div className="flex flex-col gap-2">
               {frameworks.map((f, i) => (
                 <div key={i} className="p-3 rounded-xl border border-[#E2E8F0]">
-                  <p className="font-semibold text-[#0E0E12]">{f.framework}</p>
+                  <ConceptChip label={f.framework} course={item.course} onOpen={onClose} />
                   <p className="text-[#334155]">
                     {f.why}
                     <Page p={f.page} />
@@ -250,6 +304,7 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
                         {t.data.follow_up}
                       </div>
                     )}
+                    <ConceptRow items={t.data?.concepts_used} course={item.course} onOpen={onClose} />
                   </div>
                 )
               )}
@@ -280,6 +335,7 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
                   <div className="px-3 py-2 rounded-2xl rounded-bl-md bg-white border-2 border-[#D4A94F] text-[#0E0E12] font-semibold">
                     🎤 {t.content}
                   </div>
+                  <ConceptRow items={t.data?.concepts_used} course={item.course} onOpen={onClose} />
                 </div>
               )
             )}
