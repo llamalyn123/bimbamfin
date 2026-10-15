@@ -138,6 +138,31 @@ export const HomeScreen: React.FC = () => {
       })
   ].sort((a, b) => new Date(a.when).getTime() - new Date(b.when).getTime());
 
+  // More than 15 days away -> weekly check-in instead of the main list.
+  // "Seen it" hides an item until next week (Monday-based week, this device).
+  const FAR_DAYS = 15;
+  const weekNo = Math.floor((Date.now() / 864e5 + 3) / 7);
+  const [seenWeek, setSeenWeek] = useState<Record<string, number>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('bimbam_weekly_seen') || '{}');
+    } catch {
+      return {};
+    }
+  });
+  const markSeen = (key: string) => {
+    const next = { ...seenWeek, [key]: weekNo };
+    setSeenWeek(next);
+    try {
+      localStorage.setItem('bimbam_weekly_seen', JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  };
+  const isFar = (iso: string) => new Date(iso).getTime() - Date.now() > FAR_DAYS * 864e5;
+  const nearDue = dueSoon.filter((d) => !isFar(d.when));
+  const farAll = dueSoon.filter((d) => isFar(d.when));
+  const farDue = farAll.filter((d) => seenWeek[d.key] !== weekNo);
+
   const relDue = (iso: string) => {
     const h = (new Date(iso).getTime() - Date.now()) / 36e5;
     if (h < 0) return { text: 'Overdue', cls: 'bg-[#3A1620] text-[#FF6B6B]' };
@@ -441,7 +466,7 @@ export const HomeScreen: React.FC = () => {
                     {t('home_due_soon', 'Due soon')}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-[#F1F5F9] text-[#475569] font-label-tabular text-label-micro font-semibold border border-[#E2E8F0]">
-                    {dueSoon.length}
+                    {nearDue.length}
                   </span>
                 </div>
                 <button
@@ -455,9 +480,13 @@ export const HomeScreen: React.FC = () => {
               </div>
 
               <div className="flex flex-col divide-y divide-[#E2E8F0]">
-                {dueSoon.length === 0 ? (
+                {nearDue.length === 0 && farDue.length === 0 ? (
                   <div className="py-6 text-center text-xs text-[#64748B] flex flex-col items-center gap-2">
-                    <span className="italic">Nothing due. Deadlines come from your course outlines, Telegram groups, or things you add.</span>
+                    <span className="italic">
+                      {farAll.length
+                        ? `Nothing due in the next ${FAR_DAYS} days. ${farAll.length} later deadline${farAll.length === 1 ? '' : 's'} checked this week.`
+                        : 'Nothing due. Deadlines come from your course outlines, Telegram groups, or things you add.'}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setActiveScreen('matrix')}
@@ -467,7 +496,7 @@ export const HomeScreen: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  dueSoon.slice(0, 5).map((item) => {
+                  nearDue.slice(0, 5).map((item) => {
                     const rel = relDue(item.when);
                     return (
                       <div
@@ -511,6 +540,37 @@ export const HomeScreen: React.FC = () => {
                   })
                 )}
               </div>
+
+              {farDue.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-dashed border-[#CBD5E1] flex flex-col gap-2" aria-label="Weekly check-in">
+                  <p className="text-[11px] uppercase tracking-wider text-[#64748B] font-semibold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">event_repeat</span>
+                    Weekly check-in · more than {FAR_DAYS} days away
+                  </p>
+                  {farDue.map((item) => (
+                    <div key={item.key} className="flex items-center justify-between gap-2 text-sm">
+                      <button type="button" onClick={item.onOpen} className="min-w-0 flex-1 text-left flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[16px] text-[#94A3B8] shrink-0">
+                          {item.kind === 'deadline' || item.kind === 'eventdue' ? 'flag' : item.kind === 'register' ? 'how_to_reg' : 'celebration'}
+                        </span>
+                        <span className="truncate text-[#334155]">{item.title}</span>
+                        <span className="text-xs text-[#64748B] shrink-0">
+                          {new Date(item.when).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })} · in{' '}
+                          {Math.ceil((new Date(item.when).getTime() - Date.now()) / 864e5)} days
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => markSeen(item.key)}
+                        title="Hide until next week. It moves to Due soon when it's 15 days away."
+                        className="shrink-0 px-2 py-0.5 rounded-lg border border-[#C9D1DB] text-xs font-semibold text-[#475569] hover:text-[#0E0E12]"
+                      >
+                        Seen it
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* Electric Violet CTA: Start a 5-question quiz */}
