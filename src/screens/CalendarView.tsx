@@ -2,6 +2,8 @@ import { isDeadlineEvent } from '../lib/eventKinds';
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
+import { confetti, cheer } from '../lib/celebrate';
+import { supabase } from '../lib/supabase';
 
 type CalItem = {
   id: string;
@@ -17,6 +19,11 @@ type CalItem = {
   course?: string;
   dateMs: number;
   edit?: EditableItem;
+  /** To-do items (deadlines, deadline-type events) can be ticked off */
+  todo?: { kind: 'deadline' | 'event'; id: string };
+  done?: boolean;
+  /** The student's own event (booking, meeting, added by them): can be removed */
+  ownEventId?: string;
 };
 
 const toKey = (d: Date) =>
@@ -25,7 +32,7 @@ const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute:
 const DONE = ['completed', 'cleared', 'done'];
 
 export const CalendarView: React.FC = () => {
-  const { deadlines, events, classes, setActiveScreen, setSelectedCourse, t } = useApp();
+  const { deadlines, events, classes, setActiveScreen, setSelectedCourse, t, toggleDeadline, toggleEventRegister, userEventInterests, showToast, currentUser, refreshFromSupabase } = useApp();
   const [editItem, setEditItem] = useState<EditableItem | null>(null);
 
   const today = new Date();
@@ -61,7 +68,9 @@ export const CalendarView: React.FC = () => {
         actionType: 'note',
         course: dl.course,
         dateMs: d.getTime(),
-        edit: { type: 'deadline', id: dl.id, title: dl.title, course: dl.course, start: dl.due_date }
+        edit: { type: 'deadline', id: dl.id, title: dl.title, course: dl.course, start: dl.due_date },
+        todo: { kind: 'deadline', id: dl.id },
+        done
       });
     }
     for (const ev of events) {
@@ -78,7 +87,9 @@ export const CalendarView: React.FC = () => {
         weightOrStatus: '',
         actionText: 'View event',
         actionType: 'event',
-        dateMs: d.getTime()
+        dateMs: d.getTime(),
+        ownEventId: ev.created_by && ev.created_by === currentUser?.id ? ev.id : undefined,
+        ...(isDeadlineEvent(ev) ? { todo: { kind: 'event' as const, id: ev.id }, done: !!userEventInterests[ev.id] } : {})
       });
     }
     for (const c of classes) {
@@ -101,7 +112,7 @@ export const CalendarView: React.FC = () => {
     }
     Object.values(map).forEach((list) => list.sort((a, b) => a.dateMs - b.dateMs));
     return map;
-  }, [deadlines, events, classes]);
+  }, [deadlines, events, classes, userEventInterests, currentUser?.id]);
 
   // Month grid, weeks starting Monday
   const calendarCells = useMemo(() => {
@@ -165,11 +176,40 @@ export const CalendarView: React.FC = () => {
     items: selectedItems
   };
 
-  const filteredItems = currentInspector.items.filter((item) => {
-    if (filterType === 'deadlines') return item.category === 'Assignment' || item.category === 'Quiz' || item.categoryBadge === 'Deadline';
-    if (filterType === 'events') return item.category === 'Event' && item.categoryBadge !== 'Deadline';
-    return true;
-  });
+  const todos = selectedItems.filter((x) => x.todo);
+  const todosDone = todos.filter((x) => x.done).length;
+  const filteredItems = currentInspector.items
+    .filter((item) => {
+      if (filterType === 'deadlines') return !!item.todo;
+      if (filterType === 'events') return !item.todo && item.category !== 'Class';
+      return true;
+    })
+    .sort((a, b) => (filterType === 'deadlines' ? Number(!!a.done) - Number(!!b.done) : 0));
+
+  const removeEvent = async (item: CalItem) => {
+    if (!item.ownEventId) return;
+    const what = item.categoryBadge === 'Booking' ? 'booking' : item.categoryBadge === 'Meeting' ? 'meeting' : 'event';
+    if (!window.confirm(`Remove "${item.title}" from your calendar?${what === 'booking' ? " This doesn't cancel it on the school's booking site." : ''}`)) return;
+    const { data, error } = await supabase.from('events').delete().eq('id', item.ownEventId).select('id');
+    if (error) return showToast(`Couldn't remove: ${error.message}`);
+    if (!data?.length) return showToast("Couldn't remove it. Try refreshing the page.");
+    showToast(`${what.charAt(0).toUpperCase() + what.slice(1)} removed`);
+    refreshFromSupabase();
+  };
+
+  const tick = async (item: CalItem, e: React.MouseEvent) => {
+    if (!item.todo) return;
+    const finishing = !item.done;
+    if (item.todo.kind === 'deadline') await toggleDeadline(item.todo.id, true);
+    else await toggleEventRegister(item.todo.id, true);
+    if (finishing) {
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      confetti(r.left + r.width / 2, r.top + r.height / 2);
+      showToast(cheer(todosDone + 1 === todos.length));
+    } else {
+      showToast('Back on your list');
+    }
+  };
 
   const handleAction = (item: CalItem) => {
     if (item.actionType === 'note') {
@@ -428,7 +468,7 @@ export const CalendarView: React.FC = () => {
                     : 'text-[#64748B] hover:text-[#0E0E12]'
                 }`}
               >
-                {t('cal_deadlines_only', 'Deadlines')}
+                {t('cal_deadlines_only', 'To-do')}{todos.length ? ` (${todos.length - todosDone})` : ''}
               </button>
               <button
                 type="button"
@@ -442,6 +482,20 @@ export const CalendarView: React.FC = () => {
                 {t('cal_events_only', 'Events')}
               </button>
             </div>
+
+            {todos.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="text-[#0E0E12]">
+                    {todosDone === todos.length ? 'All done for this day 🎉' : `${todosDone} of ${todos.length} to-do${todos.length > 1 ? 's' : ''} ticked off`}
+                  </span>
+                  <span className="text-emerald-700">{Math.round((todosDone / todos.length) * 100)}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100 border border-[#E2E8F0] overflow-hidden">
+                  <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(todosDone / todos.length) * 100}%` }} />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Scheduled Item Cards */}
@@ -456,7 +510,7 @@ export const CalendarView: React.FC = () => {
                   {/* Priority bar */}
                   <div
                     className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                      isEvent ? 'bg-purple-600' : 'bg-amber-500'
+                      item.done ? 'bg-emerald-500' : isEvent && !item.todo ? 'bg-purple-600' : 'bg-amber-500'
                     }`}
                   ></div>
 
@@ -484,9 +538,29 @@ export const CalendarView: React.FC = () => {
                       <div className="font-label-tabular text-label-tabular text-[#64748B] font-medium">
                         {item.courseOrHost}
                       </div>
-                      <h3 className="font-headline-sm text-headline-sm text-[#0E0E12] tracking-tight mt-0.5 font-bold">
-                        {item.title}
-                      </h3>
+                      <div className="flex items-start gap-2 mt-0.5">
+                        {item.todo && (
+                          <button
+                            type="button"
+                            onClick={(e) => tick(item, e)}
+                            role="checkbox"
+                            aria-checked={!!item.done}
+                            aria-label={item.done ? `Mark ${item.title} not done` : `Tick off ${item.title}`}
+                            className={`mt-0.5 w-6 h-6 shrink-0 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 ${
+                              item.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-amber-500 hover:bg-amber-50'
+                            }`}
+                          >
+                            {item.done && <span className="material-symbols-outlined text-[16px]">check</span>}
+                          </button>
+                        )}
+                        <h3
+                          className={`font-headline-sm text-headline-sm tracking-tight font-bold ${
+                            item.done ? 'line-through text-[#94A3B8]' : 'text-[#0E0E12]'
+                          }`}
+                        >
+                          {item.title}
+                        </h3>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1.5 text-xs text-[#64748B] pt-0.5">
@@ -499,8 +573,19 @@ export const CalendarView: React.FC = () => {
 
                   <div className="pl-2 pt-2 flex items-center justify-between border-t border-[#E2E8F0]">
                     <span className="font-label-micro text-label-micro text-[#64748B] uppercase font-medium">
-                      {item.weightOrStatus}
+                      {item.todo ? (item.done ? '✓ Done' : 'To-do') : item.weightOrStatus}
                     </span>
+                    {item.ownEventId && (
+                      <button
+                        type="button"
+                        onClick={() => removeEvent(item)}
+                        title="Remove from calendar"
+                        aria-label={`Remove ${item.title}`}
+                        className="ml-auto mr-2 px-2 py-1.5 rounded-xl bg-white border border-[#E2E8F0] hover:border-red-300 hover:text-red-600 text-[#475569]"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">delete</span>
+                      </button>
+                    )}
                     {item.edit && (
                       <button
                         type="button"

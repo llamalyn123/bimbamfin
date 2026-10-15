@@ -149,8 +149,9 @@ export const CampusFacilities: React.FC = () => {
   const past = bookings.filter(isPast).reverse();
   const removeBooking = async (b: MyBooking) => {
     if (!window.confirm(`Remove "${b.title}" from Bimbam? This doesn't cancel it on ${uni}'s booking site.`)) return;
-    const { error: err } = await supabase.from('events').delete().eq('id', b.id);
+    const { data: gone, error: err } = await supabase.from('events').delete().eq('id', b.id).select('id');
     if (err) return showToast(`Couldn't remove: ${err.message}`);
+    if (!gone?.length) return showToast("Couldn't remove it. Try refreshing the page.");
     setBookings((bs) => bs.filter((x) => x.id !== b.id));
     showToast('Booking removed');
     refreshFromSupabase();
@@ -279,7 +280,14 @@ export const CampusFacilities: React.FC = () => {
     if (!chosen.length) return;
     setAdding(true);
     let ok = 0;
+    let dupes = 0;
     for (const p of chosen) {
+      // Same room at the same time already saved? Skip it (stops double entries when a confirmation is dropped twice).
+      const same = bookings.some((b) => b.title === p.title && new Date(b.event_date).getTime() === new Date(p.event_date).getTime());
+      if (same) {
+        dupes++;
+        continue;
+      }
       const { data, error: err } = await supabase
         .from('events')
         .insert({
@@ -306,7 +314,10 @@ export const CampusFacilities: React.FC = () => {
       ok++;
     }
     setAdding(false);
-    if (ok) showToast(`${ok} booking${ok === 1 ? '' : 's'} added to your calendar`);
+    if (ok || dupes)
+      showToast(
+        [ok ? `${ok} booking${ok === 1 ? '' : 's'} added to your calendar` : '', dupes ? `${dupes} already saved, skipped` : ''].filter(Boolean).join(' · ')
+      );
     closePaste();
     loadBookings();
     await refreshFromSupabase();

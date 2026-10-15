@@ -92,12 +92,12 @@ interface AppContextType {
   setSelectedDate: (date: number) => void;
   
   // Database Actions
-  toggleDeadline: (id: string) => Promise<void>;
+  toggleDeadline: (id: string, quiet?: boolean) => Promise<void>;
   addDeadline: (deadline: Omit<Deadline, 'id'>) => Promise<boolean>;
   addSource: (source: Omit<SourceItem, 'id'>) => Promise<boolean>;
   setSources: React.Dispatch<React.SetStateAction<SourceItem[]>>;
   saveQuizResult: (score: number, answers?: unknown[]) => Promise<boolean>;
-  toggleEventRegister: (eventId: string) => Promise<void>;
+  toggleEventRegister: (eventId: string, quiet?: boolean) => Promise<void>;
   toggleEventReminder: (eventId: string) => Promise<void>;
   refreshFromSupabase: () => Promise<void>;
   
@@ -637,7 +637,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
   // Toggle deadline completion
-  const toggleDeadline = async (id: string) => {
+  const toggleDeadline = async (id: string, quiet = false) => {
     const item = deadlines.find(d => d.id === id);
     if (!item) return;
 
@@ -646,7 +646,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       const { error } = await supabase.from('deadlines').update({ status: newStatus }).eq('id', id);
-      if (!error) {
+      if (!error && !quiet) {
         showToast(`Deadline marked ${newStatus}`);
       }
     } catch (e: any) {
@@ -754,14 +754,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return error ? error.message : null;
   };
 
-  const toggleEventRegister = async (eventId: string) => {
+  const toggleEventRegister = async (eventId: string, quiet = false) => {
     const nextVal = !userEventInterests[eventId];
     setUserEventInterests(prev => ({ ...prev, [eventId]: nextVal }));
     const err = await upsertInterest(eventId, { registered: nextVal });
     if (err) {
       setUserEventInterests(prev => ({ ...prev, [eventId]: !nextVal }));
       showToast(`Couldn't save: ${err}`);
-    } else {
+    } else if (!quiet) {
       showToast(nextVal ? 'Done. Register-by reminder hidden.' : 'Register-by reminder back on');
     }
   };
