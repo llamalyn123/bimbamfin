@@ -612,6 +612,41 @@ export const HomeScreen: React.FC = () => {
 
           {/* RIGHT COLUMN: Live & Upcoming Events Panel (5 cols) */}
           <div className="lg:col-span-5 flex flex-col gap-4">
+            {/* Exam countdown: top of the right column, above your events */}
+            {examSoon.length > 0 && (
+              <section className="flex flex-col gap-3 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-xs" aria-label="Exam countdown">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-[#64748B] font-semibold">Exam countdown</p>
+                  <p className="font-headline-sm text-[#0E0E12] font-bold leading-snug">
+                    {countdownTitle(daysUntil(examSoon[0].due_date))}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-[#F1F5F9] border border-[#E2E8F0] text-[#0E0E12] shrink-0">
+                    <span className="text-2xl font-bold leading-none">{Math.max(0, daysUntil(examSoon[0].due_date))}</span>
+                    <span className="text-[10px] font-semibold text-[#64748B]">{daysUntil(examSoon[0].due_date) === 1 ? 'day' : 'days'}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[#0E0E12] truncate">{examName(examSoon[0].title)}</p>
+                    <p className="text-xs text-[#64748B]">
+                      {[realCourse(examSoon[0].course), new Date(examSoon[0].due_date).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  </div>
+                </div>
+                {examSoon.length > 1 && (
+                  <ul className="flex flex-col gap-1.5 border-t border-[#E2E8F0] pt-3">
+                    {examSoon.slice(1, 5).map((x) => (
+                      <li key={x.id} className="flex items-center justify-between text-sm gap-2">
+                        <span className="truncate text-[#1E293B]">{examName(x.title)}</span>
+                        <span className="text-xs text-[#64748B] shrink-0">{daysUntil(x.due_date)} days</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <span className="font-headline-sm text-headline-sm text-[#0E0E12] font-bold tracking-tight">
@@ -724,41 +759,6 @@ export const HomeScreen: React.FC = () => {
               );
             })}
 
-            {/* Exam countdown: calm, lives in the right column */}
-            {examSoon.length > 0 && (
-              <section className="flex flex-col gap-3 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-xs" aria-label="Exam countdown">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-[#64748B] font-semibold">Exam countdown</p>
-                  <p className="font-headline-sm text-[#0E0E12] font-bold leading-snug">
-                    {countdownTitle(daysUntil(examSoon[0].due_date))}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-[#F1F5F9] border border-[#E2E8F0] text-[#0E0E12] shrink-0">
-                    <span className="text-2xl font-bold leading-none">{Math.max(0, daysUntil(examSoon[0].due_date))}</span>
-                    <span className="text-[10px] font-semibold text-[#64748B]">{daysUntil(examSoon[0].due_date) === 1 ? 'day' : 'days'}</span>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[#0E0E12] truncate">{examName(examSoon[0].title)}</p>
-                    <p className="text-xs text-[#64748B]">
-                      {[realCourse(examSoon[0].course), new Date(examSoon[0].due_date).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
-                  </div>
-                </div>
-                {examSoon.length > 1 && (
-                  <ul className="flex flex-col gap-1.5 border-t border-[#E2E8F0] pt-3">
-                    {examSoon.slice(1, 5).map((x) => (
-                      <li key={x.id} className="flex items-center justify-between text-sm gap-2">
-                        <span className="truncate text-[#1E293B]">{examName(x.title)}</span>
-                        <span className="text-xs text-[#64748B] shrink-0">{daysUntil(x.due_date)} days</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            )}
           </div>
         </div>
       )}
