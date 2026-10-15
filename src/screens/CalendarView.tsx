@@ -3,7 +3,6 @@ import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
 import { confetti, cheer } from '../lib/celebrate';
-import { supabase } from '../lib/supabase';
 
 type CalItem = {
   id: string;
@@ -22,8 +21,6 @@ type CalItem = {
   /** To-do items (deadlines, deadline-type events) can be ticked off */
   todo?: { kind: 'deadline' | 'event'; id: string };
   done?: boolean;
-  /** The student's own event (booking, meeting, added by them): can be removed */
-  ownEventId?: string;
 };
 
 const toKey = (d: Date) =>
@@ -32,7 +29,7 @@ const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute:
 const DONE = ['completed', 'cleared', 'done'];
 
 export const CalendarView: React.FC = () => {
-  const { deadlines, events, classes, setActiveScreen, setSelectedCourse, t, toggleDeadline, toggleEventRegister, userEventInterests, showToast, currentUser, refreshFromSupabase } = useApp();
+  const { deadlines, events, classes, setActiveScreen, setSelectedCourse, t, toggleDeadline, toggleEventRegister, userEventInterests, showToast } = useApp();
   const [editItem, setEditItem] = useState<EditableItem | null>(null);
 
   const today = new Date();
@@ -88,7 +85,6 @@ export const CalendarView: React.FC = () => {
         actionText: 'View event',
         actionType: 'event',
         dateMs: d.getTime(),
-        ownEventId: ev.created_by && ev.created_by === currentUser?.id ? ev.id : undefined,
         ...(isDeadlineEvent(ev) ? { todo: { kind: 'event' as const, id: ev.id }, done: !!userEventInterests[ev.id] } : {})
       });
     }
@@ -112,7 +108,7 @@ export const CalendarView: React.FC = () => {
     }
     Object.values(map).forEach((list) => list.sort((a, b) => a.dateMs - b.dateMs));
     return map;
-  }, [deadlines, events, classes, userEventInterests, currentUser?.id]);
+  }, [deadlines, events, classes, userEventInterests]);
 
   // Month grid, weeks starting Monday
   const calendarCells = useMemo(() => {
@@ -185,17 +181,6 @@ export const CalendarView: React.FC = () => {
       return true;
     })
     .sort((a, b) => (filterType === 'deadlines' ? Number(!!a.done) - Number(!!b.done) : 0));
-
-  const removeEvent = async (item: CalItem) => {
-    if (!item.ownEventId) return;
-    const what = item.categoryBadge === 'Booking' ? 'booking' : item.categoryBadge === 'Meeting' ? 'meeting' : 'event';
-    if (!window.confirm(`Remove "${item.title}" from your calendar?${what === 'booking' ? " This doesn't cancel it on the school's booking site." : ''}`)) return;
-    const { data, error } = await supabase.from('events').delete().eq('id', item.ownEventId).select('id');
-    if (error) return showToast(`Couldn't remove: ${error.message}`);
-    if (!data?.length) return showToast("Couldn't remove it. Try refreshing the page.");
-    showToast(`${what.charAt(0).toUpperCase() + what.slice(1)} removed`);
-    refreshFromSupabase();
-  };
 
   const tick = async (item: CalItem, e: React.MouseEvent) => {
     if (!item.todo) return;
@@ -575,17 +560,6 @@ export const CalendarView: React.FC = () => {
                     <span className="font-label-micro text-label-micro text-[#64748B] uppercase font-medium">
                       {item.todo ? (item.done ? '✓ Done' : 'To-do') : item.weightOrStatus}
                     </span>
-                    {item.ownEventId && (
-                      <button
-                        type="button"
-                        onClick={() => removeEvent(item)}
-                        title="Remove from calendar"
-                        aria-label={`Remove ${item.title}`}
-                        className="ml-auto mr-2 px-2 py-1.5 rounded-xl bg-white border border-[#E2E8F0] hover:border-red-300 hover:text-red-600 text-[#475569]"
-                      >
-                        <span className="material-symbols-outlined text-[15px]">delete</span>
-                      </button>
-                    )}
                     {item.edit && (
                       <button
                         type="button"

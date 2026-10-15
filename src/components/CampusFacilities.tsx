@@ -149,9 +149,8 @@ export const CampusFacilities: React.FC = () => {
   const past = bookings.filter(isPast).reverse();
   const removeBooking = async (b: MyBooking) => {
     if (!window.confirm(`Remove "${b.title}" from Bimbam? This doesn't cancel it on ${uni}'s booking site.`)) return;
-    const { data: gone, error: err } = await supabase.from('events').delete().eq('id', b.id).select('id');
+    const { error: err } = await supabase.from('events').delete().eq('id', b.id);
     if (err) return showToast(`Couldn't remove: ${err.message}`);
-    if (!gone?.length) return showToast("Couldn't remove it. Try refreshing the page.");
     setBookings((bs) => bs.filter((x) => x.id !== b.id));
     showToast('Booking removed');
     refreshFromSupabase();
