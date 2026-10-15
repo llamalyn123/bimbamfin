@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { invokeEdge } from '../lib/edge';
@@ -22,22 +22,31 @@ type Mode = 'brief' | 'chat' | 'coldcall' | 'frameworks';
 const Page: React.FC<{ p?: string }> = ({ p }) =>
   p ? <span className="ml-1 px-1.5 py-0.5 rounded bg-slate-100 border border-[#E2E8F0] text-[10px] font-semibold text-[#475569]">{p}</span> : null;
 
-/** "Week 5: Emotional intelligence" -> chip that opens that week's note. */
+type ConceptInfo = { label: string; week: number; heading: string; explanation: string; points: string[] };
+const norm = (x: string) => x.toLowerCase().replace(/\[this week\]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const headingOf = (label: string) => label.replace(/^\s*week\s*\d+\s*[:\-–]\s*/i, '');
+
+/** Tapping a chip inside the case room opens a quick peek instead of leaving the case. */
+const PeekCtx = createContext<((label: string) => void) | null>(null);
+
+/** "Week 5: Emotional intelligence" -> chip; peeks inside the case room, otherwise opens that week's note. */
 const ConceptChip: React.FC<{ label: string; course: string; onOpen: () => void }> = ({ label, course, onOpen }) => {
   const { setSelectedCourse, setSelectedWeek, setActiveScreen } = useApp();
+  const peek = useContext(PeekCtx);
   const week = Number(label.match(/week\s*(\d+)/i)?.[1] ?? NaN);
   return (
     <button
       type="button"
-      disabled={Number.isNaN(week)}
+      disabled={!peek && Number.isNaN(week)}
       onClick={() => {
+        if (peek) return peek(label);
         setSelectedCourse(course);
         setSelectedWeek(week);
         setActiveScreen('notes-detail');
         onOpen();
       }}
-      title={Number.isNaN(week) ? undefined : 'Open this week\'s note'}
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#C7D2FE] bg-[#EEF2FF] text-[11px] font-semibold text-[#3730A3] hover:border-[#4F46E5]"
+      title={peek ? 'Show this concept' : Number.isNaN(week) ? undefined : 'Open this week\'s note'}
+      className="self-start inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#C7D2FE] bg-[#EEF2FF] text-[11px] font-semibold text-[#3730A3] hover:border-[#4F46E5]"
     >
       <span className="material-symbols-outlined text-[12px]">school</span>
       {label}
@@ -57,8 +66,12 @@ const ConceptRow: React.FC<{ items?: string[]; course: string; onOpen: () => voi
 
 /** Full-screen case room: brief, discussion, cold-call practice, framework hints. */
 export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> = ({ item, onClose }) => {
-  const { language } = useApp();
+  const { language, notes, setSelectedCourse, setSelectedWeek, setActiveScreen } = useApp();
   const [mode, setMode] = useState<Mode>('brief');
+  const [peeked, setPeeked] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false); // phone: bottom sheet
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [brief, setBrief] = useState<Brief | null>(null);
   const [frameworks, setFrameworks] = useState<any[] | null>(null);
   const chatThread = useChatThread<Turn>('case', item?.id, { title: item?.title, context: `Case discussion: ${item?.title ?? ''}`, language });
@@ -68,6 +81,83 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
   const cold = coldThread.messages;
   const setCold = coldThread.setMessages;
   const activeThread = mode === 'chat' ? chatThread : mode === 'coldcall' ? coldThread : null;
+
+  // Concepts from the student's notes for this course, case week and earlier
+  const library = useMemo(() => {
+    const out: ConceptInfo[] = [];
+    if (!item) return out;
+    for (const n of notes) {
+      if (String(n.course).toUpperCase() !== String(item.course).toUpperCase()) continue;
+      const w = Number(String(n.week).match(/\d+/)?.[0] ?? NaN);
+      if (Number.isNaN(w) || (item.week && w > item.week)) continue;
+      let c: any;
+      try {
+        c = typeof n.content === 'string' ? JSON.parse(n.content) : n.content;
+      } catch {
+        continue;
+      }
+      for (const k of c?.concepts ?? []) {
+        out.push({
+          label: `Week ${w}: ${k.heading}`,
+          week: w,
+          heading: String(k.heading ?? ''),
+          explanation: String(k.explanation ?? ''),
+          points: (k.points ?? []).map((p: any) => String(p.text ?? p)).filter(Boolean).slice(0, 4)
+        });
+      }
+    }
+    return out;
+  }, [notes, item]);
+
+  const lookup = (label: string): ConceptInfo | null => {
+    const exact = library.find((c) => norm(c.label) === norm(label));
+    if (exact) return exact;
+    const h = norm(headingOf(label));
+    return library.find((c) => norm(c.heading) === h) ?? library.find((c) => h && (norm(c.heading).includes(h) || h.includes(norm(c.heading)))) ?? null;
+  };
+
+  // Every concept the case room has brought up so far, with how often
+  const used = useMemo(() => {
+    const counts = new Map<string, number>();
+    const add = (l?: string) => l && counts.set(l, (counts.get(l) ?? 0) + 1);
+    brief?.course_links?.forEach((l) => add(l.concept));
+    (frameworks ?? []).forEach((f: any) => add(f.framework));
+    [...chat, ...cold].forEach((t: any) => (t.data?.concepts_used ?? []).forEach(add));
+    return [...counts.entries()]
+      .map(([label, count]) => ({ label, count, info: lookup(label) }))
+      .sort((a, b) => (b.info?.week ?? 0) - (a.info?.week ?? 0) || b.count - a.count);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brief, frameworks, chat, cold, library]);
+
+  // Briefly highlight concepts that just appeared
+  const seenRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const now = new Set(used.map((u) => u.label));
+    if (seenRef.current) {
+      const added = [...now].filter((l) => !seenRef.current!.has(l));
+      if (added.length) {
+        setFresh(new Set(added));
+        const t = window.setTimeout(() => setFresh(new Set()), 4000);
+        seenRef.current = now;
+        return () => window.clearTimeout(t);
+      }
+    }
+    seenRef.current = now;
+  }, [used]);
+  useEffect(() => {
+    seenRef.current = null;
+    setPeeked(null);
+    setExpanded(null);
+  }, [item?.id]);
+
+  const openNote = (info: ConceptInfo | null, label: string) => {
+    const week = info?.week ?? Number(label.match(/week\s*(\d+)/i)?.[1] ?? NaN);
+    if (!item || Number.isNaN(week)) return;
+    setSelectedCourse(item.course);
+    setSelectedWeek(week);
+    setActiveScreen('notes-detail');
+    onClose();
+  };
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,9 +228,11 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
       <div
         role="dialog"
         aria-label={`Case: ${item.title}`}
-        className="w-full max-w-3xl bg-white sm:rounded-2xl p-5 flex flex-col gap-3 h-full sm:h-[88vh]"
+        className="relative w-full max-w-3xl lg:max-w-6xl bg-white sm:rounded-2xl p-5 flex gap-5 h-full sm:h-[88vh]"
         onClick={(e) => e.stopPropagation()}
       >
+       <PeekCtx.Provider value={setPeeked}>
+        <div className="flex-1 min-w-0 flex flex-col gap-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-xs text-[#64748B]">
@@ -396,6 +488,120 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
             </button>
           </div>
         )}
+        </div>
+
+        {/* Concepts side panel (desktop) / bottom sheet (phone) */}
+        <aside
+          aria-label="Concepts in this case"
+          className={`${panelOpen ? 'flex' : 'hidden'} lg:flex flex-col gap-2 absolute lg:static inset-x-0 bottom-0 max-h-[70%] lg:max-h-none lg:w-80 shrink-0 bg-white lg:bg-[#F8FAFF] border-t lg:border border-[#C7D2FE] lg:rounded-xl p-4 overflow-y-auto shadow-2xl lg:shadow-none rounded-t-2xl z-10`}
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-[#0E0E12] flex items-center gap-1">
+              <span className="material-symbols-outlined text-[18px] text-[#4F46E5]">school</span>
+              Concepts in play
+            </h3>
+            <button type="button" onClick={() => setPanelOpen(false)} className="lg:hidden text-xs text-[#64748B] underline">
+              Close
+            </button>
+          </div>
+          <p className="text-[11px] text-[#64748B]">
+            From your {item.course} notes{item.week ? `, Week ${item.week} and earlier` : ''}. Updates as the tutor brings them up.
+          </p>
+          {used.length === 0 && (
+            <p className="text-xs text-[#64748B] py-2">
+              {library.length ? 'None yet. Open the case brief or start talking it through.' : `No ${item.course} notes${item.week ? ` up to Week ${item.week}` : ''} yet. Generate them in Notes to link concepts.`}
+            </p>
+          )}
+          {used.map(({ label, count, info }) => {
+            const isOpen = expanded === label;
+            return (
+              <div
+                key={label}
+                className={`rounded-xl border p-2.5 transition-colors ${fresh.has(label) ? 'border-[#4F46E5] bg-[#EEF2FF] ring-2 ring-[#C7D2FE]' : 'border-[#E2E8F0] bg-white'}`}
+              >
+                <button type="button" onClick={() => setExpanded(isOpen ? null : label)} className="w-full text-left flex items-start gap-2">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${item.week && info?.week === item.week ? 'bg-[#4F46E5] text-white' : 'bg-slate-100 text-[#475569]'}`}>
+                    W{info?.week ?? '?'}
+                  </span>
+                  <span className="flex-1 text-sm font-semibold text-[#0E0E12]">{info?.heading ?? headingOf(label)}</span>
+                  <span className="text-[10px] text-[#64748B]" title="Times it came up">×{count}</span>
+                </button>
+                {info?.explanation && <p className={`text-xs text-[#334155] mt-1 ${isOpen ? '' : 'line-clamp-2'}`}>{info.explanation}</p>}
+                {isOpen && (
+                  <div className="mt-1.5 flex flex-col gap-1.5">
+                    {info?.points?.length ? (
+                      <ul className="list-disc pl-4 text-xs text-[#334155]">
+                        {info.points.map((p, i) => (
+                          <li key={i}>{p}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    <button type="button" onClick={() => openNote(info, label)} className="self-start text-xs font-semibold text-[#4F46E5]">
+                      Open Week {info?.week ?? ''} note →
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </aside>
+
+        {/* Phone: button to open the concepts sheet */}
+        {!panelOpen && (
+          <button
+            type="button"
+            onClick={() => setPanelOpen(true)}
+            className="lg:hidden absolute right-16 top-6 px-3 py-1 rounded-full bg-[#4F46E5] text-white text-xs font-semibold shadow"
+          >
+            Concepts ({used.length})
+          </button>
+        )}
+
+        {/* Quick peek (tap any concept chip) */}
+        {peeked && (() => {
+          const info = lookup(peeked);
+          return (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/30 rounded-2xl p-4" onClick={() => setPeeked(null)}>
+              <div role="dialog" aria-label={peeked} className="w-full max-w-md bg-white rounded-2xl p-4 flex flex-col gap-2 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[11px] font-semibold text-[#4F46E5]">
+                      {item.course} · Week {info?.week ?? (peeked.match(/week\s*(\d+)/i)?.[1] ?? '?')}
+                      {item.week && info?.week === item.week ? ' · this case\'s week' : ''}
+                    </p>
+                    <h4 className="text-base font-bold text-[#0E0E12]">{info?.heading ?? headingOf(peeked)}</h4>
+                  </div>
+                  <button type="button" onClick={() => setPeeked(null)} aria-label="Close" className="w-7 h-7 rounded-full bg-slate-100 shrink-0">
+                    <span className="material-symbols-outlined text-[16px]">close</span>
+                  </button>
+                </div>
+                {info ? (
+                  <>
+                    {info.explanation && <p className="text-sm text-[#334155]">{info.explanation}</p>}
+                    {info.points.length > 0 && (
+                      <ul className="list-disc pl-5 text-sm text-[#334155]">
+                        {info.points.map((p, i) => (
+                          <li key={i}>{p}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-[#64748B]">This concept isn't in your saved notes word-for-word. Open the week's note to find it.</p>
+                )}
+                <div className="flex justify-end gap-2 pt-1">
+                  <button type="button" onClick={() => setPeeked(null)} className="px-3 py-1.5 rounded-lg border border-[#C9D1DB] text-sm font-semibold">
+                    Back to case
+                  </button>
+                  <button type="button" onClick={() => openNote(info, peeked)} className="px-3 py-1.5 rounded-lg bg-[#4F46E5] text-white text-sm font-semibold">
+                    Open full note
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+       </PeekCtx.Provider>
       </div>
     </div>
   );

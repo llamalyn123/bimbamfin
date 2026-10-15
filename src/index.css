@@ -409,3 +409,21 @@ html.dark .border-purple-200,
 html.dark .border-sky-200,
 html.dark .border-amber-200,
 html.dark .border-slate-200 { border-color: #33334A !important; }
+
+/* Case room: course links, concept chips and concepts panel (dark mode) */
+html.dark .bg-\[\#F5F7FF\],
+html.dark .bg-\[\#F8FAFF\] {
+  background-color: #171a2e !important;
+}
+html.dark .bg-\[\#EEF2FF\] {
+  background-color: #23264a !important;
+}
+html.dark .text-\[\#3730A3\] {
+  color: #c7d2fe !important;
+}
+html.dark .border-\[\#C7D2FE\] {
+  border-color: #3b3f73 !important;
+}
+html.dark .text-\[\#7F1D1D\] {
+  color: #fca5a5 !important;
+}
