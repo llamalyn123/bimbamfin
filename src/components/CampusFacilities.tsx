@@ -162,18 +162,72 @@ export const CampusFacilities: React.FC = () => {
     }
   };
 
+  const readOne = async (t: string, img: PickedImage | null) => {
+    const body: Record<string, unknown> = { kind: 'booking' };
+    if (t.trim()) body.text = t.trim();
+    if (img) body.image = { data: img.data, media_type: img.media_type };
+    const { data, error: err } = await invokeEdge('extract-event', body);
+    if (err) throw new Error(err.message);
+    return (data?.events || []) as BookingPreview[];
+  };
+
   const readBooking = async () => {
     setReading(true);
     setError(null);
-    const body: Record<string, unknown> = { kind: 'booking' };
-    if (text.trim()) body.text = text.trim();
-    if (image) body.image = { data: image.data, media_type: image.media_type };
-    const { data, error: err } = await invokeEdge('extract-event', body);
+    try {
+      const list = await readOne(text, image);
+      if (!list.length) return setError("Couldn't find a booking date and time in that confirmation.");
+      setPreviews(list.map((p) => ({ ...p, keep: true })));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setReading(false);
+    }
+  };
+
+  /** Drop box: screenshots, PDFs or saved emails (.eml/.txt/.html). Read straight away; several files at once is fine. */
+  const takeFiles = async (files: FileList | File[] | null) => {
+    const list = Array.from(files ?? []).slice(0, 5);
+    if (!list.length) return;
+    setPasteOpen(true);
+    setPreviews(null);
+    setError(null);
+    setReading(true);
+    const found: BookingPreview[] = [];
+    const problems: string[] = [];
+    for (const f of list) {
+      try {
+        if (/\.(eml|txt|html?)$/i.test(f.name) || f.type.startsWith('text/')) {
+          let t = await f.text();
+          if (/\.html?$/i.test(f.name) || /<html/i.test(t)) t = t.replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
+          t = t.replace(/=\r?\n/g, '').replace(/[ \t]+/g, ' ').slice(0, 19_000);
+          found.push(...(await readOne(t, null)));
+        } else {
+          const img = await prepareImage(f);
+          if (list.length === 1) setImage(img);
+          found.push(...(await readOne('', img)));
+        }
+      } catch (e) {
+        problems.push(`${f.name}: ${(e as Error).message}`);
+      }
+    }
     setReading(false);
-    if (err) return setError(err.message);
-    const list = (data?.events || []) as BookingPreview[];
-    if (!list.length) return setError("Couldn't find a booking date and time in that confirmation.");
-    setPreviews(list.map((p) => ({ ...p, keep: true })));
+    if (found.length) setPreviews(found.map((p) => ({ ...p, keep: true })));
+    if (problems.length) setError(problems.join(' · '));
+    else if (!found.length) setError("Couldn't find a booking date and time in that confirmation.");
+  };
+  const [dragging, setDragging] = useState(false);
+  const dropProps = {
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(true);
+    },
+    onDragLeave: () => setDragging(false),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(false);
+      takeFiles(e.dataTransfer.files);
+    }
   };
 
   const addBookings = async () => {
@@ -240,6 +294,29 @@ export const CampusFacilities: React.FC = () => {
           Add a booking
         </button>
       </div>
+
+      <label
+        {...dropProps}
+        className={`flex flex-col sm:flex-row items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed text-center cursor-pointer transition-colors ${
+          dragging ? 'border-[#D4A94F] bg-[#FFFBEB]' : 'border-gray-300 hover:border-[#D4A94F]'
+        }`}
+      >
+        <span className="material-symbols-outlined text-[26px] text-[#D4A94F]">move_to_inbox</span>
+        <span className="text-sm text-gray-700">
+          <b>Drop booking confirmations here</b> or click to choose
+          <span className="block text-xs text-gray-500">Screenshots, PDFs or saved emails (.eml). Several at once is fine. Only place, date and time are kept.</span>
+        </span>
+        <input
+          type="file"
+          multiple
+          accept="image/*,application/pdf,.eml,.txt,.html,.htm"
+          className="sr-only"
+          onChange={(e) => {
+            takeFiles(e.target.files);
+            e.target.value = '';
+          }}
+        />
+      </label>
 
       {loading ? (
         <p className="text-xs text-gray-500">Loading…</p>
@@ -332,15 +409,23 @@ export const CampusFacilities: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  <label className="flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-gray-300 hover:border-[#D4A94F] text-sm font-semibold text-gray-700 cursor-pointer">
+                  <label
+                    {...dropProps}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed text-sm font-semibold text-gray-700 cursor-pointer ${
+                      dragging ? 'border-[#D4A94F] bg-[#FFFBEB]' : 'border-gray-300 hover:border-[#D4A94F]'
+                    }`}
+                  >
                     <span className="material-symbols-outlined text-[18px]">add_photo_alternate</span>
-                    Add a screenshot or PDF
+                    Drop or add a screenshot, PDF or saved email
                     <input
                       type="file"
-                      accept="image/*,application/pdf"
+                      multiple
+                      accept="image/*,application/pdf,.eml,.txt,.html,.htm"
                       className="sr-only"
                       onChange={(e) => {
-                        pickImage(e.target.files?.[0]);
+                        const fs = e.target.files;
+                        if (fs && fs.length === 1 && /^(image\/|application\/pdf)/.test(fs[0].type)) pickImage(fs[0]);
+                        else takeFiles(fs);
                         e.target.value = '';
                       }}
                     />
