@@ -112,7 +112,15 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [activeScreen, setActiveScreen] = useState<ActiveScreen>('home');
+  const readNav = <T,>(key: string, fallback: T): T => {
+    try {
+      const v = sessionStorage.getItem(key);
+      return v === null ? fallback : (JSON.parse(v) as T);
+    } catch {
+      return fallback;
+    }
+  };
+  const [activeScreen, setActiveScreen] = useState<ActiveScreen>(() => readNav<ActiveScreen>('bimbam_screen', 'home'));
   const [homeSubView, setHomeSubView] = useState<'list' | 'calendar'>('list');
   
   // Theme state: defaults to 'light', persists to localStorage
@@ -299,7 +307,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [events, setEvents] = useState<EventItem[]>([]);
   const [sources, setSources] = useState<SourceItem[]>([]);
   const [notes, setNotes] = useState<NoteItem[]>([]);
-  const [quiz, setQuiz] = useState<QuizItem>(EMPTY_QUIZ);
+  const [quiz, setQuiz] = useState<QuizItem>(() => readNav<QuizItem>('bimbam_quiz', EMPTY_QUIZ));
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('bimbam_quiz', JSON.stringify(quiz));
+    } catch {
+      /* too large or unavailable: fine */
+    }
+  }, [quiz]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [changeAlerts, setChangeAlerts] = useState<ChangeAlert[]>([]);
   const [quotes, setQuotes] = useState<QuoteItem[]>([]);
@@ -316,8 +331,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [userEventInterests, setUserEventInterests] = useState<Record<string, boolean>>({});
   const [reminders, setReminders] = useState<Record<string, boolean>>({});
 
-  const [selectedCourse, setSelectedCourse] = useState<string>('');
-  const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const [selectedCourse, setSelectedCourse] = useState<string>(() => readNav('bimbam_course', ''));
+  const [selectedWeek, setSelectedWeek] = useState<number>(() => readNav('bimbam_week', 1));
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('bimbam_screen', JSON.stringify(activeScreen));
+      sessionStorage.setItem('bimbam_course', JSON.stringify(selectedCourse));
+      sessionStorage.setItem('bimbam_week', JSON.stringify(selectedWeek));
+    } catch {
+      /* storage unavailable: fine */
+    }
+  }, [activeScreen, selectedCourse, selectedWeek]);
   const [selectedDate, setSelectedDate] = useState<number>(24);
   
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -463,9 +487,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           initials: displayName.slice(0, 2).toUpperCase(),
           university: userUni
         };
-        setCurrentUser(scholar);
+        // Supabase re-fires SIGNED_IN / TOKEN_REFRESHED when the tab regains focus.
+        // Only a real new sign-in (different user) should send the student to Home.
+        setCurrentUser((prev) => {
+          if (!prev || prev.id !== scholar.id) setActiveScreen('home');
+          return scholar;
+        });
         localStorage.setItem('nocturne_auth_user', JSON.stringify(scholar));
-        setActiveScreen('home');
       } else if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
         localStorage.removeItem('nocturne_auth_user');

@@ -14,6 +14,8 @@ type Question = {
   correct_index: number;
   explanation: string;
   explanation_en?: string;
+  why_not?: string[];
+  why_not_en?: string[];
   concepts?: QConcept[];
 };
 
@@ -69,17 +71,35 @@ export const QuizScreen: React.FC = () => {
   } = useApp();
 
   const questions = (Array.isArray(quiz.questions) ? quiz.questions : []) as Question[];
-  const [index, setIndex] = useState(0);
-  const [picked, setPicked] = useState<Record<number, number>>({});
-  const [finished, setFinished] = useState(false);
+  // Progress survives leaving the Quiz tab (kept per quiz for this browser session)
+  const progressKey = `bimbam_quiz_progress_${quiz.id}`;
+  const saved = (() => {
+    try {
+      return JSON.parse(sessionStorage.getItem(progressKey) || 'null') as { index: number; picked: Record<number, number>; finished: boolean } | null;
+    } catch {
+      return null;
+    }
+  })();
+  const [index, setIndex] = useState(saved?.index ?? 0);
+  const [picked, setPicked] = useState<Record<number, number>>(saved?.picked ?? {});
+  const [finished, setFinished] = useState(saved?.finished ?? false);
   const subtitles = language !== 'en' && showEnglishSubtitles;
 
-  // New quiz -> start fresh
+  // New quiz -> restore its saved progress, or start fresh
   useEffect(() => {
-    setIndex(0);
-    setPicked({});
-    setFinished(false);
+    setIndex(saved?.index ?? 0);
+    setPicked(saved?.picked ?? {});
+    setFinished(saved?.finished ?? false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quiz.id]);
+  useEffect(() => {
+    if (!quiz.id) return;
+    try {
+      sessionStorage.setItem(progressKey, JSON.stringify({ index, picked, finished }));
+    } catch {
+      /* ignore */
+    }
+  }, [progressKey, quiz.id, index, picked, finished]);
 
   const [progress, setProgress] = useState<ProgressLite | null>(null);
 
@@ -224,6 +244,12 @@ export const QuizScreen: React.FC = () => {
                 {qq.options[qq.correct_index]}
               </p>
               <p className="text-sm text-[#334155]">{qq.explanation}</p>
+              {picked[i] !== undefined && qq.why_not?.[picked[i]] && (
+                <p className="text-sm text-[#7F1D1D]">
+                  <span className="font-semibold">Why not “{qq.options[picked[i]]}”: </span>
+                  {qq.why_not[picked[i]]}
+                </p>
+              )}
             </div>
           )
         )}
@@ -237,6 +263,7 @@ export const QuizScreen: React.FC = () => {
         <span className="flex items-center gap-2">
           <span>
             Question {index + 1} of {questions.length}
+            {quiz.scope?.difficulty ? ` · ${quiz.scope.difficulty[0].toUpperCase()}${quiz.scope.difficulty.slice(1)}` : ''}
             {quiz.course ? ` · ${quiz.course}${quiz.scope?.from_week ? ` W${quiz.scope.from_week}–${quiz.scope.to_week}` : ''}` : ''}
           </span>
           <button type="button" onClick={() => window.confirm('Leave this quiz? Your answers so far won\'t be saved.') && newQuiz()} className="underline hover:text-[#0E0E12]">
@@ -288,6 +315,12 @@ export const QuizScreen: React.FC = () => {
                 <span className="flex flex-col">
                   <span className="text-sm text-[#0E0E12]">{opt}</span>
                   {subtitles && q.options_en?.[oi] && <span className="text-xs text-[#64748B] italic">{q.options_en[oi]}</span>}
+                  {answered && !isCorrect && q.why_not?.[oi] && (
+                    <span className="text-xs text-[#7F1D1D] mt-1">
+                      <b>Why not:</b> {q.why_not[oi]}
+                      {subtitles && q.why_not_en?.[oi] && <span className="block text-[#64748B] italic">{q.why_not_en[oi]}</span>}
+                    </span>
+                  )}
                 </span>
               </button>
             );

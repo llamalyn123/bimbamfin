@@ -3,6 +3,21 @@ import { useApp } from '../context/AppContext';
 import { invokeEdge } from '../lib/edge';
 
 const COUNTS = [5, 10, 15, 20];
+export type Difficulty = 'easy' | 'medium' | 'hard';
+const LEVELS: { id: Difficulty; label: string; hint: string }[] = [
+  { id: 'easy', label: 'Easy', hint: 'Core ideas in plain words. Good for a first pass.' },
+  { id: 'medium', label: 'Medium', hint: 'Understanding plus short new scenarios.' },
+  { id: 'hard', label: 'Hard', hint: 'Exam level: combine concepts, tricky "which is best" options.' }
+];
+/** Last difficulty the student picked (also used by "Quiz me on this week"). */
+export const savedDifficulty = (): Difficulty => {
+  try {
+    const v = localStorage.getItem('bimbam_difficulty');
+    return v === 'easy' || v === 'hard' ? v : 'medium';
+  } catch {
+    return 'medium';
+  }
+};
 const weekNum = (w: unknown) => Number(String(w).match(/\d+/)?.[0] ?? NaN);
 
 /**
@@ -32,6 +47,15 @@ export const QuizBuilder: React.FC = () => {
   const [to, setTo] = useState(0);
   const [count, setCount] = useState(10);
   const [focus, setFocus] = useState<'even' | 'weak'>('even');
+  const [difficulty, setDifficultyState] = useState<Difficulty>(savedDifficulty);
+  const setDifficulty = (d: Difficulty) => {
+    setDifficultyState(d);
+    try {
+      localStorage.setItem('bimbam_difficulty', d);
+    } catch {
+      /* ignore */
+    }
+  };
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [left, setLeft] = useState<number | null>(null);
@@ -54,7 +78,7 @@ export const QuizBuilder: React.FC = () => {
   const run = async (label: string, body: Record<string, unknown>) => {
     setError(null);
     setBusy(label);
-    const { data, error: err } = await invokeEdge('generate-quiz', { ...body, language });
+    const { data, error: err } = await invokeEdge('generate-quiz', { ...body, language, difficulty });
     setBusy(null);
     if (err) return setError(err.message);
     if (typeof data?.remaining_today === 'number') setLeft(data.remaining_today);
@@ -157,6 +181,18 @@ export const QuizBuilder: React.FC = () => {
         </div>
 
         <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-semibold text-[#64748B]">Difficulty</span>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Difficulty">
+            {LEVELS.map((l) => (
+              <button key={l.id} type="button" role="radio" aria-checked={difficulty === l.id} className={chip(difficulty === l.id)} onClick={() => setDifficulty(l.id)}>
+                {l.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-[#64748B]">{LEVELS.find((l) => l.id === difficulty)?.hint} Applies to the quick 5 below too.</span>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
           <span className="text-xs font-semibold text-[#64748B]">Focus</span>
           <div className="flex flex-wrap gap-2">
             <button type="button" className={chip(focus === 'even')} onClick={() => setFocus('even')}>
@@ -183,7 +219,7 @@ export const QuizBuilder: React.FC = () => {
             className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold disabled:opacity-50 flex items-center gap-2"
           >
             <span className="material-symbols-outlined text-[18px]">{busy === 'course' ? 'hourglass_top' : 'bolt'}</span>
-            {busy === 'course' ? 'Building your quiz…' : `Start ${count}-question quiz`}
+            {busy === 'course' ? 'Building your quiz…' : `Start ${count}-question ${difficulty} quiz`}
           </button>
           {busy === 'course' && <span className="text-xs text-[#64748B]">Reading {weeksInRange} weeks of notes. Can take up to a minute.</span>}
           {left !== null && !busy && <span className="text-xs text-[#64748B]">{left} quizzes left today</span>}

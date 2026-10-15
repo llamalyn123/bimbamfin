@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { invokeEdge } from '../lib/edge';
+import { useChatThread } from '../lib/chatThreads';
+import { ChatHistory, RecapCard } from './ChatHistory';
 
 export type CaseRow = { id: number; course: string; week: number | null; title: string; file_path: string; created_at: string };
 
@@ -25,8 +27,13 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
   const [mode, setMode] = useState<Mode>('brief');
   const [brief, setBrief] = useState<Brief | null>(null);
   const [frameworks, setFrameworks] = useState<any[] | null>(null);
-  const [chat, setChat] = useState<Turn[]>([]);
-  const [cold, setCold] = useState<Turn[]>([]);
+  const chatThread = useChatThread<Turn>('case', item?.id, { title: item?.title, context: `Case discussion: ${item?.title ?? ''}`, language });
+  const coldThread = useChatThread<Turn>('coldcall', item?.id, { title: item?.title, context: `Cold-call practice on the case: ${item?.title ?? ''}`, language });
+  const chat = chatThread.messages;
+  const setChat = chatThread.setMessages;
+  const cold = coldThread.messages;
+  const setCold = coldThread.setMessages;
+  const activeThread = mode === 'chat' ? chatThread : mode === 'coldcall' ? coldThread : null;
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,8 +43,6 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
     setMode('brief');
     setBrief(null);
     setFrameworks(null);
-    setChat([]);
-    setCold([]);
     setError(null);
   }, [item?.id]);
 
@@ -68,10 +73,10 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
     if (!item) return;
     if (mode === 'brief' && !brief && !busy) call('brief').then((d) => d && setBrief(d));
     if (mode === 'frameworks' && !frameworks && !busy) call('frameworks').then((d) => d && setFrameworks(d.suggestions || []));
-    if (mode === 'coldcall' && cold.length === 0 && !busy)
+    if (mode === 'coldcall' && coldThread.loaded && cold.length === 0 && !busy)
       call('coldcall', []).then((d) => d && setCold([{ role: 'assistant', content: d.next_question, data: d }]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, item?.id]);
+  }, [mode, item?.id, coldThread.loaded, cold.length]);
 
   if (!item) return null;
 
@@ -137,7 +142,7 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-[#64748B]">Based only on this case (page refs shown). It won't write your analysis. Chats aren't saved.</p>
+        <p className="text-[11px] text-[#64748B]">Based only on this case (page refs shown). It won't write your analysis. Chats are saved to your account.</p>
 
         <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-3 text-sm">
           {busy && <p className="text-xs text-[#64748B]">Reading the case…</p>}
@@ -212,9 +217,10 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
             </div>
           )}
 
+          {activeThread?.current?.summary && <RecapCard s={activeThread.current.summary} compact />}
           {mode === 'chat' && (
             <>
-              {chat.length === 0 && !busy && (
+              {chat.length === 0 && !busy && chatThread.loaded && (
                 <p className="text-[#475569]">Share your take on the case: the core problem, what you'd recommend, or a question. I'll check it against the case.</p>
               )}
               {chat.map((t, i) =>
@@ -278,7 +284,35 @@ export const CaseRoom: React.FC<{ item: CaseRow | null; onClose: () => void }> =
               )
             )}
           <div ref={endRef} />
+          {activeThread && (
+            <ChatHistory
+              history={activeThread.history}
+              summarizing={activeThread.summarizing}
+              onSummarize={(t) => activeThread.summarize(t)}
+              onResume={(t) => activeThread.resume(t)}
+              onDelete={(t) => activeThread.remove(t)}
+            />
+          )}
         </div>
+
+        {activeThread && activeThread.messages.length > 0 && (
+          <div className="flex gap-3 items-center">
+            <button type="button" onClick={() => activeThread.startOver()} className="text-xs text-[#64748B] underline">
+              {mode === 'coldcall' ? 'New practice round (saves this one)' : 'Start over (saves this chat to history)'}
+            </button>
+            {activeThread.messages.length >= 2 && (
+              <button
+                type="button"
+                disabled={!!activeThread.summarizing}
+                onClick={() => activeThread.summarize(activeThread.current)}
+                className="text-xs text-[#4F46E5] font-semibold disabled:opacity-50"
+              >
+                {activeThread.summarizing ? 'Making a recap…' : '✨ Recap so far'}
+              </button>
+            )}
+            {activeThread.error && <span className="text-xs text-red-700">{activeThread.error}</span>}
+          </div>
+        )}
 
         {(mode === 'chat' || mode === 'coldcall') && (
           <div className="flex gap-2 items-end">

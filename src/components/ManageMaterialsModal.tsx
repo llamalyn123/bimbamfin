@@ -27,7 +27,11 @@ const fileName = (path: string) => {
   }
 };
 const mediaType = (name: string) =>
-  /\.pdf$/i.test(name)
+  /\.pptx$/i.test(name)
+    ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    : /\.docx$/i.test(name)
+    ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    : /\.pdf$/i.test(name)
     ? 'application/pdf'
     : /\.png$/i.test(name)
       ? 'image/png'

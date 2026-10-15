@@ -140,7 +140,7 @@ export interface QuizItem {
   id: string;
   note_id?: string | null;
   course?: string | null;
-  scope?: { course: string; from_week: number; to_week: number; focus: 'even' | 'weak'; weak_found?: number } | null;
+  scope?: { course?: string; from_week?: number; to_week?: number; focus?: 'even' | 'weak'; weak_found?: number; difficulty?: 'easy' | 'medium' | 'hard' } | null;
   questions: any;
   score?: number | null;
   created_at?: string;

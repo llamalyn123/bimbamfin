@@ -1,3 +1,4 @@
+import { savedDifficulty } from '../components/QuizBuilder';
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
@@ -103,7 +104,7 @@ export const NotesDetailView: React.FC = () => {
     if (!noteRow?.id) return;
     setIsQuizzing(true);
     setError(null);
-    const { data, error: err } = await invokeEdge('generate-quiz', { note_id: noteRow.id, num_questions: 5, language });
+    const { data, error: err } = await invokeEdge('generate-quiz', { note_id: noteRow.id, num_questions: 5, language, difficulty: savedDifficulty() });
     setIsQuizzing(false);
     if (err) return setError(err);
     setQuiz(data.quiz);

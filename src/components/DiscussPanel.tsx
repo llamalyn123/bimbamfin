@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { invokeEdge } from '../lib/edge';
+import { useChatThread } from '../lib/chatThreads';
+import { ChatHistory, RecapCard } from './ChatHistory';
 
 type SourceRef = { id: unknown; label: string; name: string };
 type Correction = { student_said: string; correction: string; source_ids: string[] };
@@ -39,7 +41,8 @@ const Tags: React.FC<{ ids: string[]; sources: SourceRef[] }> = ({ ids, sources 
 
 /**
  * "Discuss" (chat tutor) + "Feedback on my writing", grounded only in this
- * week's master note. Conversation stays in the browser; nothing is saved.
+ * week's master note. The chat is saved to the student's account (chat_threads)
+ * with past chats and AI recaps; writing feedback is not saved.
  */
 export const DiscussPanel: React.FC<{ noteId: string; language: string; sources: SourceRef[] }> = ({
   noteId,
@@ -47,7 +50,9 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
   sources
 }) => {
   const [mode, setMode] = useState<'chat' | 'feedback'>('chat');
-  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const thread = useChatThread<Msg>('discuss', noteId, { context: "Discussing this week's course note", language });
+  const msgs = thread.messages;
+  const setMsgs = thread.setMessages;
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,9 +64,8 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [msgs, busy]);
 
-  // new note -> fresh conversation
+  // new note -> clear writing feedback (the chat itself is loaded per note by useChatThread)
   useEffect(() => {
-    setMsgs([]);
     setFeedback(null);
     setError(null);
   }, [noteId]);
@@ -124,13 +128,15 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
       </div>
       <p className="text-[11px] text-[#64748B] flex items-center gap-1">
         <span className="material-symbols-outlined text-[13px]">info</span>
-        Checked only against this week's note and your sources. It won't write work for you. Not saved.
+        Checked only against this week's note and your sources. It won't write work for you. Chats are saved to your account.
       </p>
 
       {mode === 'chat' ? (
         <>
           <div className="flex flex-col gap-3 max-h-[420px] overflow-y-auto pr-1">
-            {msgs.length === 0 && (
+            {!thread.loaded && <p className="text-xs text-[#64748B]">Loading your chat…</p>}
+            {thread.current?.summary && <RecapCard s={thread.current.summary} compact />}
+            {thread.loaded && msgs.length === 0 && (
               <div className="text-sm text-[#475569] flex flex-col gap-2">
                 <p>Share your take on this week's ideas and I'll check it against your material.</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -214,10 +220,30 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
             </button>
           </div>
           {msgs.length > 0 && (
-            <button type="button" onClick={() => setMsgs([])} className="self-start text-xs text-[#64748B] underline">
-              Start over
-            </button>
+            <div className="flex gap-3 items-center">
+              <button type="button" onClick={() => thread.startOver()} className="text-xs text-[#64748B] underline">
+                Start over (saves this chat to history)
+              </button>
+              {msgs.length >= 2 && (
+                <button
+                  type="button"
+                  disabled={!!thread.summarizing}
+                  onClick={() => thread.summarize(thread.current)}
+                  className="text-xs text-[#4F46E5] font-semibold disabled:opacity-50"
+                >
+                  {thread.summarizing ? 'Making a recap…' : '✨ Recap so far'}
+                </button>
+              )}
+            </div>
           )}
+          {thread.error && <p role="alert" className="text-xs text-red-700">{thread.error}</p>}
+          <ChatHistory
+            history={thread.history}
+            summarizing={thread.summarizing}
+            onSummarize={(t) => thread.summarize(t)}
+            onResume={(t) => thread.resume(t)}
+            onDelete={(t) => thread.remove(t)}
+          />
         </>
       ) : (
         <>

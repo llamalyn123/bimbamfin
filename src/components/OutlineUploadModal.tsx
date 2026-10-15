@@ -28,7 +28,12 @@ async function toPayload(file: File): Promise<{ data: string; media_type: string
     if (file.size > 10_000_000) throw new Error('That PDF is too large (max 10 MB).');
     return { data: (await readFile(file)).split(',')[1], media_type: 'application/pdf' };
   }
-  if (!file.type.startsWith('image/')) throw new Error('Upload a PDF or an image. Export Word files as PDF first.');
+  const office = /\.pptx$/i.test(file.name) ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation' : /\.docx$/i.test(file.name) ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : null;
+  if (office) {
+    if (file.size > 10_000_000) throw new Error('That file is too large (max 10 MB).');
+    return { data: (await readFile(file)).split(',')[1], media_type: office };
+  }
+  if (!file.type.startsWith('image/')) throw new Error('Upload a PDF, Word (.docx), PowerPoint (.pptx) or an image.');
   const url = await readFile(file);
   const img = await new Promise<HTMLImageElement>((res, rej) => {
     const el = new Image();
@@ -226,11 +231,11 @@ export const OutlineUploadModal: React.FC<{ open: boolean; onClose: () => void; 
             >
               <span className="material-symbols-outlined text-[28px] text-[#D4A94F]">upload_file</span>
               <span className="text-sm text-[#334155] flex-1">
-                {file ? <b>{file.name}</b> : <><b>Drop the outline (PDF or photo)</b> or click to choose</>}
+                {file ? <b>{file.name}</b> : <><b>Drop the outline (PDF, Word, PowerPoint or photo)</b> or click to choose</>}
               </span>
               <input
                 type="file"
-                accept="application/pdf,image/*"
+                accept="application/pdf,image/*,.docx,.pptx"
                 className="hidden"
                 onChange={(e) => {
                   setFile(e.target.files?.[0] ?? null);
