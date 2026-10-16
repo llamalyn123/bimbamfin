@@ -18,6 +18,15 @@ export const savedDifficulty = (): Difficulty => {
     return 'medium';
   }
 };
+export type Formats = 'mixed' | 'mcq';
+/** Question types the student picked: mixed (default) or multiple choice only. */
+export const savedFormats = (): Formats => {
+  try {
+    return localStorage.getItem('bimbam_quiz_formats') === 'mcq' ? 'mcq' : 'mixed';
+  } catch {
+    return 'mixed';
+  }
+};
 const weekNum = (w: unknown) => Number(String(w).match(/\d+/)?.[0] ?? NaN);
 
 /**
@@ -56,6 +65,15 @@ export const QuizBuilder: React.FC = () => {
       /* ignore */
     }
   };
+  const [formats, setFormatsState] = useState<Formats>(savedFormats);
+  const setFormats = (f: Formats) => {
+    setFormatsState(f);
+    try {
+      localStorage.setItem('bimbam_quiz_formats', f);
+    } catch {
+      /* ignore */
+    }
+  };
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [left, setLeft] = useState<number | null>(null);
@@ -78,7 +96,7 @@ export const QuizBuilder: React.FC = () => {
   const run = async (label: string, body: Record<string, unknown>) => {
     setError(null);
     setBusy(label);
-    const { data, error: err } = await invokeEdge('generate-quiz', { ...body, language, difficulty });
+    const { data, error: err } = await invokeEdge('generate-quiz', { ...body, language, difficulty, formats });
     setBusy(null);
     if (err) return setError(err.message);
     if (typeof data?.remaining_today === 'number') setLeft(data.remaining_today);
@@ -190,6 +208,23 @@ export const QuizBuilder: React.FC = () => {
             ))}
           </div>
           <span className="text-xs text-[#64748B]">{LEVELS.find((l) => l.id === difficulty)?.hint} Applies to the quick 5 below too.</span>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-semibold text-[#64748B]">Question types</span>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Question types">
+            <button type="button" role="radio" aria-checked={formats === 'mixed'} className={chip(formats === 'mixed')} onClick={() => setFormats('mixed')}>
+              Mixed
+            </button>
+            <button type="button" role="radio" aria-checked={formats === 'mcq'} className={chip(formats === 'mcq')} onClick={() => setFormats('mcq')}>
+              Multiple choice only
+            </button>
+          </div>
+          <span className="text-xs text-[#64748B]">
+            {formats === 'mixed'
+              ? 'Scenarios, "which is NOT", spot the error, true or false, fill in the blank, and explain-in-your-own-words checked by Capy.'
+              : 'Multiple choice in varied styles: scenarios, "which is NOT", cause and effect, compare, spot the error.'}
+          </span>
         </div>
 
         <div className="flex flex-col gap-1.5">

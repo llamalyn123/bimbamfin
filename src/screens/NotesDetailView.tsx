@@ -1,4 +1,4 @@
-import { savedDifficulty } from '../components/QuizBuilder';
+import { savedDifficulty, savedFormats } from '../components/QuizBuilder';
 import { Capy } from '../components/Capy';
 import { CapyError } from '../components/CapyStates';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -274,7 +274,7 @@ export const NotesDetailView: React.FC = () => {
     if (!noteRow?.id) return;
     setIsQuizzing(true);
     setError(null);
-    const { data, error: err } = await invokeEdge('generate-quiz', { note_id: noteRow.id, num_questions: 5, language, difficulty: savedDifficulty() });
+    const { data, error: err } = await invokeEdge('generate-quiz', { note_id: noteRow.id, num_questions: 5, language, difficulty: savedDifficulty(), formats: savedFormats() });
     setIsQuizzing(false);
     if (err) return setError(err);
     setQuiz(data.quiz);

@@ -5,10 +5,18 @@ import { FRIENDS, Friend, requestDiscussMode, takeNewUnlocks } from '../lib/capy
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { QuizBuilder } from '../components/QuizBuilder';
+import { invokeEdge } from '../lib/edge';
 
 type QConcept = { id: string; note_id?: string; heading?: string };
+type Format = 'mcq' | 'true_false' | 'fill_blank' | 'explain';
+type Grade = { verdict: 'got_it' | 'partly' | 'not_yet'; covered: number[]; missing_hints: string[]; feedback: string };
+type Typed = { value: string; correct: boolean; grade?: Grade; self?: boolean };
 type Question = {
   id: string;
+  format?: Format;
+  style?: 'scenario' | 'which_not' | 'cause_effect' | 'compare' | 'spot_error' | 'definition';
+  accept?: string[];
+  key_points?: string[];
   kind?: 'understanding' | 'application' | 'connection';
   prompt: string;
   prompt_en?: string;
@@ -23,6 +31,55 @@ type Question = {
 };
 
 const weekOf = (conceptId: string) => conceptId.match(/^W(\d+)/)?.[1];
+const fmt = (q: Question): Format => q.format ?? 'mcq';
+const isTyped = (q: Question) => fmt(q) === 'fill_blank' || fmt(q) === 'explain';
+
+const STYLE_LABEL: Record<string, string> = {
+  scenario: 'Scenario',
+  which_not: 'Which is NOT?',
+  cause_effect: 'Cause & effect',
+  compare: 'Compare',
+  spot_error: 'Spot the error',
+  definition: 'Definition'
+};
+const FORMAT_LABEL: Record<Format, string> = {
+  mcq: 'Multiple choice',
+  true_false: 'True or false',
+  fill_blank: 'Fill in the blank',
+  explain: 'Explain in your own words'
+};
+
+/** Fill-in-the-blank check: ignore case, punctuation and "a/an/the"; allow one typo in longer words. */
+const norm = (x: string) => x.toLowerCase().normalize('NFKC').replace(/[.,;:!?'"()\[\]]/g, ' ').replace(/\b(a|an|the)\b/g, ' ').replace(/\s+/g, ' ').trim();
+const oneEditApart = (a: string, b: string) => {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i++;
+      j++;
+      continue;
+    }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (b.length > a.length) j++;
+    else {
+      i++;
+      j++;
+    }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+};
+export const blankMatches = (value: string, accept: string[]) => {
+  const v = norm(value);
+  if (!v) return false;
+  return accept.some((a) => {
+    const t = norm(a);
+    return v === t || (t.length >= 5 && oneEditApart(v, t));
+  });
+};
 
 const LINES = {
   perfect: [
@@ -81,13 +138,18 @@ export const QuizScreen: React.FC = () => {
   const progressKey = `bimbam_quiz_progress_${quiz.id}`;
   const saved = (() => {
     try {
-      return JSON.parse(sessionStorage.getItem(progressKey) || 'null') as { index: number; picked: Record<number, number>; finished: boolean } | null;
+      return JSON.parse(sessionStorage.getItem(progressKey) || 'null') as { index: number; picked: Record<number, number>; typed?: Record<number, Typed>; finished: boolean } | null;
     } catch {
       return null;
     }
   })();
   const [index, setIndex] = useState(saved?.index ?? 0);
   const [picked, setPicked] = useState<Record<number, number>>(saved?.picked ?? {});
+  const [typed, setTyped] = useState<Record<number, Typed>>(saved?.typed ?? {});
+  const [draft, setDraft] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
+  const [showKey, setShowKey] = useState(false);
   const [finished, setFinished] = useState(saved?.finished ?? false);
   const subtitles = language !== 'en' && showEnglishSubtitles;
 
@@ -95,24 +157,35 @@ export const QuizScreen: React.FC = () => {
   useEffect(() => {
     setIndex(saved?.index ?? 0);
     setPicked(saved?.picked ?? {});
+    setTyped(saved?.typed ?? {});
     setFinished(saved?.finished ?? false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quiz.id]);
   useEffect(() => {
     if (!quiz.id) return;
     try {
-      sessionStorage.setItem(progressKey, JSON.stringify({ index, picked, finished }));
+      sessionStorage.setItem(progressKey, JSON.stringify({ index, picked, typed, finished }));
     } catch {
       /* ignore */
     }
-  }, [progressKey, quiz.id, index, picked, finished]);
+  }, [progressKey, quiz.id, index, picked, typed, finished]);
+  // Fresh input box for each question
+  useEffect(() => {
+    setDraft('');
+    setCheckError(null);
+    setShowKey(false);
+  }, [index, quiz.id]);
+
+  /** One place that knows whether question i is answered / right, for every format. */
+  const answeredAt = (i: number) => (questions[i] && isTyped(questions[i]) ? typed[i] !== undefined : picked[i] !== undefined);
+  const rightAt = (i: number) => (questions[i] && isTyped(questions[i]) ? !!typed[i]?.correct : picked[i] === questions[i]?.correct_index);
 
   const [progress, setProgress] = useState<ProgressLite | null>(null);
 
   // Message is chosen once per finished quiz, so it doesn't change on re-render
   const message = useMemo(() => {
     if (!finished || !questions.length) return null;
-    const correct = questions.filter((qq, i) => picked[i] === qq.correct_index).length;
+    const correct = questions.filter((_, i) => rightAt(i)).length;
     const ratio = correct / questions.length;
     const tier = ratio === 1 ? 'perfect' : ratio >= 0.6 ? 'good' : 'tough';
     const nailed = new Map<string, string>();
@@ -120,7 +193,7 @@ export const QuizScreen: React.FC = () => {
     questions.forEach((qq, i) => {
       for (const c of qq.concepts ?? []) {
         if (!c.heading) continue;
-        if (picked[i] === qq.correct_index) nailed.set(c.heading, c.heading);
+        if (rightAt(i)) nailed.set(c.heading, c.heading);
         else revisit.set(c.heading, { id: c.id, heading: c.heading });
       }
     });
@@ -138,18 +211,42 @@ export const QuizScreen: React.FC = () => {
 
   const q = questions[index];
   const choice = picked[index];
-  const answered = choice !== undefined;
-  const correctCount = questions.filter((qq, i) => picked[i] === qq.correct_index).length;
+  const answered = answeredAt(index);
+  const rightNow = rightAt(index);
+  const correctCount = questions.filter((_, i) => rightAt(i)).length;
   // Correct answers in a row, ending at this question
   let streakNow = 0;
-  for (let i = index; i >= 0 && picked[i] !== undefined && picked[i] === questions[i].correct_index; i--) streakNow++;
+  for (let i = index; i >= 0 && answeredAt(i) && rightAt(i); i--) streakNow++;
+
+  const checkBlank = () => {
+    const v = draft.trim();
+    if (!v) return;
+    setTyped((t) => ({ ...t, [index]: { value: v, correct: blankMatches(v, q.accept ?? []) } }));
+  };
+  const checkExplain = async () => {
+    const v = draft.trim();
+    if (!v) return;
+    setChecking(true);
+    setCheckError(null);
+    const { data, error: err } = await invokeEdge<Grade>('generate-quiz', { mode: 'grade', quiz_id: quiz.id, question_id: q.id, answer: v, language });
+    setChecking(false);
+    if (err || !data) {
+      setCheckError(err?.message ?? "Capy couldn't check that right now.");
+      return;
+    }
+    setTyped((t) => ({ ...t, [index]: { value: v, correct: data.verdict === 'got_it', grade: data } }));
+  };
+  /** Plan B when the AI is busy: compare with the key points and mark it yourself. */
+  const selfMark = (ok: boolean) => setTyped((t) => ({ ...t, [index]: { value: draft.trim(), correct: ok, self: true } }));
 
   const finish = async () => {
     setFinished(true);
     const answers = questions.map((qq, i) => ({
       question_id: qq.id,
+      format: fmt(qq),
       picked_index: picked[i] ?? null,
-      correct: picked[i] === qq.correct_index
+      ...(isTyped(qq) ? { answer_text: typed[i]?.value ?? null, verdict: typed[i]?.grade?.verdict ?? (typed[i]?.self ? 'self' : null) } : {}),
+      correct: rightAt(i)
     }));
     await saveQuizResult(correctCount, answers);
     // 80%+ may bring Capy a new friend: count great quizzes and show the one just earned
@@ -288,13 +385,22 @@ export const QuizScreen: React.FC = () => {
         </div>
 
         {questions.map((qq, i) =>
-          picked[i] === qq.correct_index ? null : (
+          rightAt(i) ? null : (
             <div key={qq.id} className="bg-white rounded-2xl border border-[#C9D1DB] p-5 flex flex-col gap-1.5">
+              <span className="text-[11px] font-semibold text-[#64748B]">{FORMAT_LABEL[fmt(qq)]}</span>
               <p className="font-semibold text-[#0E0E12]">{qq.prompt}</p>
-              <p className="text-sm text-emerald-800">
-                <span className="font-semibold">Answer: </span>
-                {qq.options[qq.correct_index]}
-              </p>
+              {typed[i]?.value && <p className="text-sm text-[#7F1D1D]"><span className="font-semibold">You wrote: </span>{typed[i].value}</p>}
+              {fmt(qq) === 'explain' ? (
+                <div className="text-sm text-emerald-800">
+                  <span className="font-semibold">A good answer covers: </span>
+                  <ul className="list-disc pl-5">{(qq.key_points ?? []).map((k) => <li key={k}>{k}</li>)}</ul>
+                </div>
+              ) : (
+                <p className="text-sm text-emerald-800">
+                  <span className="font-semibold">Answer: </span>
+                  {fmt(qq) === 'fill_blank' ? (qq.accept ?? []).join(' / ') : qq.options[qq.correct_index]}
+                </p>
+              )}
               <p className="text-sm text-[#334155]">{qq.explanation}</p>
               {picked[i] !== undefined && qq.why_not?.[picked[i]] && (
                 <p className="text-sm text-[#7F1D1D]">
@@ -322,11 +428,16 @@ export const QuizScreen: React.FC = () => {
             Exit
           </button>
         </span>
-        {q.kind === 'connection' && (
-          <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-[#E2E8F0] font-semibold text-[#475569]">
-            {isCourseQuiz ? 'Links two weeks' : 'Links to an earlier week'}
+        <span className="flex flex-wrap gap-1 justify-end">
+          <span className="px-2 py-0.5 rounded-full bg-[#EEF2FF] border border-[#C7D2FE] font-semibold text-[#3730A3]">
+            {fmt(q) === 'mcq' && q.style ? STYLE_LABEL[q.style] : FORMAT_LABEL[fmt(q)]}
           </span>
-        )}
+          {q.kind === 'connection' && (
+            <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-[#E2E8F0] font-semibold text-[#475569]">
+              {isCourseQuiz ? 'Links two weeks' : 'Links to an earlier week'}
+            </span>
+          )}
+        </span>
       </div>
       <div className="w-full h-1.5 bg-[#F4F7FB] rounded-full overflow-hidden" aria-hidden="true">
         <div className="h-full bg-[#D4A94F]" style={{ width: `${((index + (answered ? 1 : 0)) / questions.length) * 100}%` }}></div>
@@ -338,6 +449,96 @@ export const QuizScreen: React.FC = () => {
           {subtitles && q.prompt_en && <p className="text-xs text-[#64748B] italic mt-1">{q.prompt_en}</p>}
         </div>
 
+        {fmt(q) === 'fill_blank' && (
+          <div className="flex flex-col gap-2">
+            {answered ? (
+              <div className={`p-3 rounded-xl border-2 ${rightNow ? 'border-emerald-400 bg-emerald-50' : 'border-red-300 bg-red-50'}`}>
+                <p className="text-sm"><b>You wrote:</b> {typed[index]?.value}</p>
+                <p className="text-sm text-emerald-800"><b>Answer:</b> {(q.accept ?? []).join(' / ')}</p>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && checkBlank()}
+                  placeholder="Type the missing word or phrase"
+                  aria-label="Your answer for the blank"
+                  className="flex-1 px-3 py-2 rounded-xl border-2 border-[#C9D1DB] text-sm focus:outline-none focus:border-[#D4A94F]"
+                />
+                <button type="button" onClick={checkBlank} disabled={!draft.trim()} className="px-4 py-2 rounded-xl bg-[#0E0E12] text-white text-sm font-semibold disabled:opacity-40">
+                  Check
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {fmt(q) === 'explain' && (
+          <div className="flex flex-col gap-2">
+            {answered ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]"><b>You wrote:</b> {typed[index]?.value}</p>
+                <div className="text-sm">
+                  <p className="font-semibold text-[#0E0E12]">A good answer covers:</p>
+                  <ul className="flex flex-col gap-1 mt-1">
+                    {(q.key_points ?? []).map((k, ki) => {
+                      const got = typed[index]?.grade?.covered.includes(ki);
+                      return (
+                        <li key={ki} className={`flex gap-2 ${typed[index]?.grade ? (got ? 'text-emerald-800' : 'text-[#92400E]') : 'text-[#334155]'}`}>
+                          <span aria-hidden="true">{typed[index]?.grade ? (got ? '✓' : '○') : '•'}</span>
+                          {k}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+                {typed[index]?.grade && typed[index]!.grade!.missing_hints.length > 0 && (
+                  <ul className="text-sm text-[#3730A3] list-disc pl-5">
+                    {typed[index]!.grade!.missing_hints.map((h) => <li key={h}>{h}</li>)}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value.slice(0, 1200))}
+                  rows={4}
+                  placeholder="Explain it in your own words, 1–3 sentences"
+                  aria-label="Your answer in your own words"
+                  className="w-full px-3 py-2 rounded-xl border-2 border-[#C9D1DB] text-sm focus:outline-none focus:border-[#D4A94F]"
+                />
+                <div className="flex flex-wrap items-center gap-2 justify-end">
+                  {checking && <Capy size={26} mood="thinking" searching />}
+                  <button type="button" onClick={checkExplain} disabled={checking || draft.trim().split(/\s+/).length < 3} className="px-4 py-2 rounded-xl bg-[#0E0E12] text-white text-sm font-semibold disabled:opacity-40">
+                    {checking ? 'Capy is reading…' : 'Check with Capy'}
+                  </button>
+                </div>
+                {checkError && (
+                  <div className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-sm flex flex-col gap-2">
+                    <p className="text-amber-900">{checkError} You can compare with the key points and mark it yourself.</p>
+                    {!showKey ? (
+                      <button type="button" onClick={() => setShowKey(true)} disabled={!draft.trim()} className="self-start px-3 py-1 rounded-lg border border-amber-300 text-xs font-semibold">
+                        Show the key points
+                      </button>
+                    ) : (
+                      <>
+                        <ul className="list-disc pl-5 text-[#334155]">{(q.key_points ?? []).map((k) => <li key={k}>{k}</li>)}</ul>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => selfMark(true)} className="px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold">I covered them</button>
+                          <button type="button" onClick={() => selfMark(false)} className="px-3 py-1 rounded-lg border border-[#C9D1DB] text-xs font-semibold">Not yet</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {!isTyped(q) && (
         <div className="flex flex-col gap-2" role="radiogroup" aria-label="Answer options">
           {q.options.map((opt, oi) => {
             const isCorrect = oi === q.correct_index;
@@ -378,15 +579,18 @@ export const QuizScreen: React.FC = () => {
             );
           })}
         </div>
+        )}
 
         {answered && (
           <div className="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-4 flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <Capy key={`${quiz.id}-${index}`} size={40} mood={choice === q.correct_index ? (streakNow >= 3 ? 'sparkle' : 'happy') : 'oops'} react />
+              <Capy key={`${quiz.id}-${index}`} size={40} mood={rightNow ? (streakNow >= 3 ? 'sparkle' : 'happy') : typed[index]?.grade?.verdict === 'partly' ? 'thinking' : 'oops'} react />
               <p className="text-sm font-semibold text-[#0E0E12]">
-                {choice === q.correct_index
-                  ? streakNow >= 3 ? `Correct! ${streakNow} in a row ✨` : 'Correct! Capy does a happy hop.'
-                  : 'Not quite. Detective Capy found the page to check 🔍'}
+                {typed[index]?.grade?.feedback
+                  ? typed[index]!.grade!.feedback
+                  : rightNow
+                    ? streakNow >= 3 ? `Correct! ${streakNow} in a row ✨` : 'Correct! Capy does a happy hop.'
+                    : 'Not quite. Detective Capy found the page to check 🔍'}
               </p>
             </div>
             <p className="text-sm text-[#334155]">{q.explanation}</p>
