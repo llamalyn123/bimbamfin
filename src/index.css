@@ -1,0 +1,466 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-app: #F4F7FB;
+    --bg-surface: #FFFFFF;
+    --bg-surface-alt: #F8FAFC;
+    --bg-surface-secondary: #F1F5F9;
+    --surface-silver: #C9D1DB;
+    --text-primary: #0E0E12;
+    --text-secondary: #475569;
+    --text-muted: #64748B;
+    --border-app: #C9D1DB;
+    --border-subtle: #E2E8F0;
+    
+    /* Shared accents */
+    --accent-gold: #D4A94F;
+    --accent-orchid: #FF4FA3;
+    --accent-violet: #7C5CFF;
+    --accent-red: #FF6B6B;
+    --accent-amber: #F2A93B;
+  }
+
+  html.dark {
+    --bg-app: #0E0E12;
+    --bg-surface: #17171D;
+    --bg-surface-alt: #1F1F27;
+    --bg-surface-secondary: #252532;
+    --surface-silver: #2A2A38;
+    --text-primary: #F4F4F6;
+    --text-secondary: #CBD5E1;
+    --text-muted: #A1A1AA;
+    --border-app: #282836;
+    --border-subtle: #323242;
+
+    /* Shared accents in dark */
+    --accent-gold: #D4A94F;
+    --accent-orchid: #FF4FA3;
+    --accent-violet: #8D72FF;
+    --accent-red: #FF6B6B;
+    --accent-amber: #F2A93B;
+  }
+
+  body {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #0E0E12;
+    background-color: #F4F7FB;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+}
+
+/* Typography Utility Classes matching Nocturne Specification */
+.font-display-hero {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.font-headline-lg {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.font-headline-md {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.font-headline-sm {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.font-body-lg {
+  font-family: 'Geist', sans-serif;
+}
+
+.font-body-md {
+  font-family: 'Geist', sans-serif;
+}
+
+.font-body-sm {
+  font-family: 'Geist', sans-serif;
+}
+
+.font-label-tabular {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.font-label-micro {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.font-label-tag {
+  font-family: 'Geist', sans-serif;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  vertical-align: middle;
+}
+
+/* ========================================================================= */
+/* DARK MODE OVERRIDES: INK BLACK #0E0E12 & CARD SURFACE #17171D             */
+/* ========================================================================= */
+
+html.dark body {
+  background-color: #0E0E12 !important;
+  color: #F4F4F6 !important;
+}
+
+/* Backgrounds */
+html.dark .bg-\[\#F4F7FB\],
+html.dark .bg-slate-50,
+html.dark .bg-gray-50,
+html.dark .bg-zinc-50 {
+  background-color: #0E0E12 !important;
+}
+
+html.dark .bg-white {
+  background-color: #17171D !important;
+}
+
+html.dark .bg-\[\#F8FAFC\],
+html.dark .bg-\[\#F1F5F9\],
+html.dark .bg-slate-100,
+html.dark .bg-gray-100 {
+  background-color: #1F1F28 !important;
+}
+
+/* Borders */
+html.dark .border-\[\#C9D1DB\],
+html.dark .border-gray-200,
+html.dark .border-gray-100,
+html.dark .border-gray-300,
+html.dark .border-slate-200,
+html.dark .border-slate-300 {
+  border-color: #282836 !important;
+}
+
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #282836 !important;
+}
+
+/* Text Colors */
+html.dark .text-\[\#0E0E12\],
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-slate-900,
+html.dark .text-slate-800 {
+  color: #F4F4F6 !important;
+}
+
+html.dark .text-gray-700,
+html.dark .text-gray-600,
+html.dark .text-slate-700,
+html.dark .text-slate-600,
+html.dark .text-\[\#4B5563\] {
+  color: #CBD5E1 !important;
+}
+
+html.dark .text-gray-500,
+html.dark .text-gray-400,
+html.dark .text-slate-500,
+html.dark .text-slate-400,
+html.dark .text-\[\#64748B\] {
+  color: #A1A1AA !important;
+}
+
+/* Hover States */
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-\[\#F1F5F9\]:hover,
+html.dark .hover\:bg-slate-100:hover,
+html.dark .hover\:bg-gray-100:hover {
+  background-color: #262634 !important;
+}
+
+/* Header & Sidebar in Dark Mode */
+html.dark header {
+  background-color: rgba(23, 23, 29, 0.96) !important;
+  border-color: #282836 !important;
+}
+
+html.dark aside {
+  background-color: #17171D !important;
+  border-color: #282836 !important;
+}
+
+/* Forms & Inputs */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #1F1F28 !important;
+  color: #F4F4F6 !important;
+  border-color: #282836 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #71717A !important;
+}
+
+/* ========================================================================= */
+/* ACCENTS: GOLD (#D4A94F), ORCHID (#FF4FA3), VIOLET (#7C5CFF),              */
+/* RED (#FF6B6B), AMBER (#F2A93B)                                            */
+/* ========================================================================= */
+
+/* Gold for achievements, streaks, and primary badges */
+.btn-gold {
+  background-color: #D4A94F !important;
+  color: #0E0E12 !important;
+  font-weight: 600;
+}
+.btn-gold:hover {
+  background-color: #C5983E !important;
+}
+
+html.dark .text-\[\#D97706\],
+html.dark .text-\[\#92400E\],
+html.dark .text-\[\#B45309\],
+html.dark .text-\[\#C5983E\],
+html.dark .text-\[\#A16207\] {
+  color: #D4A94F !important;
+}
+
+html.dark .bg-\[\#FEF3C7\],
+html.dark .bg-\[rgba\(212\,169\,79\,0\.14\)\] {
+  background-color: rgba(212, 169, 79, 0.18) !important;
+  border-color: rgba(212, 169, 79, 0.35) !important;
+}
+
+/* Events: Violet (#7C5CFF) and Orchid Pink (#FF4FA3) */
+html.dark .bg-indigo-50,
+html.dark .bg-violet-50,
+html.dark .bg-purple-50 {
+  background-color: rgba(124, 92, 255, 0.16) !important;
+}
+
+html.dark .text-indigo-600,
+html.dark .text-indigo-700,
+html.dark .text-violet-600,
+html.dark .text-purple-600,
+html.dark .text-\[\#363FEF\] {
+  color: #8D72FF !important;
+}
+
+html.dark .bg-pink-50,
+html.dark .bg-rose-50 {
+  background-color: rgba(255, 79, 163, 0.16) !important;
+}
+
+html.dark .text-pink-600,
+html.dark .text-rose-600,
+html.dark .text-pink-700 {
+  color: #FF70B5 !important;
+}
+
+/* Urgency Chips: Red (#FF6B6B) & Amber (#F2A93B) */
+html.dark .bg-red-50 {
+  background-color: rgba(255, 107, 107, 0.16) !important;
+  border-color: rgba(255, 107, 107, 0.32) !important;
+}
+
+html.dark .text-red-700,
+html.dark .text-red-600 {
+  color: #FF8585 !important;
+}
+
+html.dark .bg-amber-50,
+html.dark .bg-yellow-50 {
+  background-color: rgba(242, 169, 59, 0.16) !important;
+  border-color: rgba(242, 169, 59, 0.32) !important;
+}
+
+html.dark .text-amber-700,
+html.dark .text-amber-800 {
+  color: #F6BE68 !important;
+}
+
+html.dark .bg-emerald-50,
+html.dark .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+}
+
+html.dark .text-emerald-700,
+html.dark .text-emerald-800 {
+  color: #34D399 !important;
+}
+
+/* ---- Dark mode: colours used by the rebuilt screens ---- */
+html.dark .text-\[\#1E293B\],
+html.dark .text-\[\#334155\] {
+  color: #E4E4E7 !important;
+}
+html.dark .text-\[\#475569\],
+html.dark .text-\[\#94A3B8\] {
+  color: #A1A1AA !important;
+}
+html.dark .text-\[\#B47B16\],
+html.dark .text-\[\#78350F\] {
+  color: #D4A94F !important;
+}
+html.dark .text-\[\#1D4ED8\] {
+  color: #8DB4FF !important;
+}
+html.dark .text-\[\#6D28D9\],
+html.dark .text-\[\#BE185D\] {
+  color: #E9D5FF !important;
+}
+html.dark .text-red-700,
+html.dark .text-red-800,
+html.dark .text-red-900 {
+  color: #FCA5A5 !important;
+}
+html.dark .text-emerald-700,
+html.dark .text-emerald-800 {
+  color: #6EE7B7 !important;
+}
+html.dark .bg-\[\#FFFDF7\],
+html.dark .bg-\[\#FFFDF5\] {
+  background-color: rgba(212, 169, 79, 0.08) !important;
+}
+html.dark .bg-\[\#FFF0F7\] {
+  background-color: rgba(255, 79, 163, 0.10) !important;
+}
+html.dark .bg-\[\#F3F0FF\] {
+  background-color: rgba(124, 92, 255, 0.16) !important;
+}
+html.dark .bg-red-50 {
+  background-color: rgba(255, 107, 107, 0.10) !important;
+}
+html.dark .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.10) !important;
+}
+html.dark .border-\[\#E2E8F0\],
+html.dark .border-\[\#E9D5FF\],
+html.dark .border-\[\#FBCFE8\],
+html.dark .border-\[\#FDE68A\] {
+  border-color: #282836 !important;
+}
+html.dark input,
+html.dark textarea {
+  color: #F4F4F6;
+}
+
+/* ---- Dark mode: light gradient cards and tinted highlights (More screen etc.) ---- */
+html.dark [class*="from-white"],
+html.dark [class*="from-gray-50"],
+html.dark [class*="from-slate-50"] {
+  background-image: none !important;
+  background-color: #17171D !important;
+}
+html.dark .bg-indigo-50,
+html.dark .bg-\[\#EEF0FF\],
+html.dark .bg-\[\#F5F3FF\] {
+  background-color: rgba(124, 92, 255, 0.14) !important;
+}
+html.dark .bg-\[\#FFFBEB\],
+html.dark .bg-amber-50,
+html.dark .bg-yellow-50 {
+  background-color: rgba(212, 169, 79, 0.12) !important;
+}
+html.dark .bg-indigo-100,
+html.dark .bg-gray-100 {
+  background-color: #262634 !important;
+}
+html.dark .text-indigo-800,
+html.dark .text-indigo-900 {
+  color: #C4B5FD !important;
+}
+html.dark .border-gray-200,
+html.dark .border-gray-300,
+html.dark .border-\[\#C9D1DB\],
+html.dark .border-\[\#CBD5E1\] {
+  border-color: #282836 !important;
+}
+
+/* Home List / Calendar toggle in dark mode */
+html.dark .home-toggle {
+  background-color: #1F1F28 !important;
+  border-color: #282836 !important;
+}
+html.dark .home-toggle .bg-white {
+  background-color: #2E2E3A !important;
+}
+
+/* Calendar chips in dark mode */
+html.dark .bg-purple-50 { background-color: rgba(124, 92, 255, 0.16) !important; }
+html.dark .bg-sky-50 { background-color: rgba(56, 189, 248, 0.14) !important; }
+html.dark .text-purple-800 { color: #C4B5FD !important; }
+html.dark .text-sky-800 { color: #7DD3FC !important; }
+html.dark .text-amber-800,
+html.dark .text-amber-900,
+html.dark .text-amber-700 { color: #F2C66D !important; }
+html.dark .border-purple-200,
+html.dark .border-sky-200,
+html.dark .border-amber-200,
+html.dark .border-slate-200 { border-color: #33334A !important; }
+
+/* Case room: course links, concept chips and concepts panel (dark mode) */
+html.dark .bg-\[\#F5F7FF\],
+html.dark .bg-\[\#F8FAFF\] {
+  background-color: #171a2e !important;
+}
+html.dark .bg-\[\#EEF2FF\] {
+  background-color: #23264a !important;
+}
+html.dark .text-\[\#3730A3\] {
+  color: #c7d2fe !important;
+}
+html.dark .border-\[\#C7D2FE\] {
+  border-color: #3b3f73 !important;
+}
+html.dark .text-\[\#7F1D1D\] {
+  color: #fca5a5 !important;
+}
+
+/* ---------- Capy (study buddy) motion. Off for reduce-motion users. ---------- */
+@keyframes capy-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }
+.capy-eyes { transform-box: fill-box; transform-origin: center; animation: capy-blink 4.6s infinite; }
+@keyframes capy-hop { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-20%); } 55% { transform: translateY(0); } 72% { transform: translateY(-7%); } }
+.capy-hop { animation: capy-hop 0.75s ease-out 1; }
+@keyframes capy-sway { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+.capy-searching { transform-origin: 50% 85%; animation: capy-sway 1.3s ease-in-out infinite; }
+@keyframes capy-sweep { 0% { transform: translate(0, 0); } 25% { transform: translate(-3px, -2px); } 50% { transform: translate(0, -4px); } 75% { transform: translate(3px, -2px); } 100% { transform: translate(0, 0); } }
+.capy-searching .capy-lens { animation: capy-sweep 1.3s linear infinite; }
+@keyframes capy-hatdrop { 0% { transform: translateY(-16px); opacity: 0; } 60% { transform: translateY(2px); opacity: 1; } 80% { transform: translateY(-1px); } 100% { transform: translateY(0); } }
+.capy-pop .capy-hat { animation: capy-hatdrop 0.55s ease-out 1; }
+@keyframes capy-markpop { 0%, 45% { transform: scale(0); } 72% { transform: scale(1.6); } 100% { transform: scale(1); } }
+.capy-pop .capy-mark { transform-box: fill-box; transform-origin: center; animation: capy-markpop 0.85s ease-out 1; }
+@keyframes capy-wave { 0%, 100% { transform: rotate(0deg); } 15% { transform: rotate(-28deg); } 35% { transform: rotate(12deg); } 55% { transform: rotate(-28deg); } 75% { transform: rotate(8deg); } }
+/* Wave hello on arrival, then again every ~20s (2 waves, then rest) */
+@keyframes capy-wave-loop {
+  0%, 16%, 100% { transform: rotate(0deg); }
+  2% { transform: rotate(-28deg); } 4.5% { transform: rotate(12deg); } 7% { transform: rotate(-28deg); } 9.5% { transform: rotate(8deg); }
+  11% { transform: rotate(-24deg); } 13.5% { transform: rotate(6deg); }
+}
+.capy-wave { transform-box: fill-box; transform-origin: 50% 100%; animation: capy-wave-loop 20s ease-in-out 0.3s infinite; }
+@keyframes capy-zzz { 0%, 100% { opacity: 0.35; transform: translateY(1px); } 50% { opacity: 1; transform: translateY(-1.5px); } }
+.capy-zzz { animation: capy-zzz 2.4s ease-in-out infinite; }
+@keyframes capy-peek { 0% { transform: translateY(36px); opacity: 0; } 70% { transform: translateY(-4px); opacity: 1; } 100% { transform: translateY(0); } }
+.capy-peek { animation: capy-peek 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 1; }
+@media (prefers-reduced-motion: reduce) {
+  .capy, .capy *, .capy-peek { animation: none !important; }
+}
+
+/* Phone scrolling: the screen area is its own scroll box (header and tab bar stay fixed).
+   Momentum scrolling on iOS, vertical touch panning allowed, no horizontal wobble. */
+.app-scroll {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y pinch-zoom;
+  overflow-x: hidden;
+}

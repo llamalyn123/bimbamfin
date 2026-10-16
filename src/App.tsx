@@ -60,19 +60,19 @@ const MainLayout: React.FC = () => {
 
   // 3. Authenticated state: render navigation rail, header, bottom bar, and active screen
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#F4F7FB] text-[#0E0E12] font-sans antialiased transition-colors">
+    <div className="flex h-dvh w-full overflow-hidden bg-[#F4F7FB] text-[#0E0E12] font-sans antialiased transition-colors">
       {/* Desktop / iPad Landscape Side Rail */}
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0 md:ml-20 lg:ml-64">
+      <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden min-w-0 md:ml-20 lg:ml-64">
         {/* Top Header */}
         <Header />
         <HowItWorks />
         <FocusTimer />
 
         {/* Screen Viewport with top offset for fixed header and bottom padding for mobile bar */}
-        <main className="flex-1 overflow-y-auto pt-16 pb-20 md:pb-0 flex flex-col min-w-0">
+        <main className="app-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain pt-16 pb-24 md:pb-0 flex flex-col min-w-0">
           {activeScreen === 'home' && <HomeScreen />}
           {activeScreen === 'calendar' && <CalendarView />}
           {activeScreen === 'matrix' && <DeadlineMatrixView />}
