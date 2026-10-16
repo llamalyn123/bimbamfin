@@ -2,6 +2,7 @@ import { isDeadlineEvent } from '../lib/eventKinds';
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Capy } from '../components/Capy';
+import { HowItWorksNudge } from '../components/HowItWorks';
 import { sourceLabel } from '../lib/labels';
 import { PasteUpdateModal } from '../components/PasteUpdateModal';
 import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
@@ -376,6 +377,8 @@ export const HomeScreen: React.FC = () => {
                 </p>
               )}
             </section>
+
+            <HowItWorksNudge />
 
             {/* Change alerts from calendar syncs */}
             {changeAlerts.length > 0 && (

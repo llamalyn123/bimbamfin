@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { ConnectedCalendars } from '../components/ConnectedCalendars';
 import { CampusFacilities } from '../components/CampusFacilities';
+import { openHowItWorks } from '../components/HowItWorks';
 import { UniversityAffiliation } from '../lib/supabase';
 import {
   User,
@@ -209,6 +210,14 @@ export const MoreScreen: React.FC = () => {
             >
               <Shield className="w-4 h-4 shrink-0" />
               <span>Privacy & PDPA</span>
+            </button>
+
+            <button
+              onClick={openHowItWorks}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition text-left cursor-pointer text-[#92400E] bg-[#FFFBEB] hover:bg-[#FEF3C7]"
+            >
+              <span className="w-4 h-4 shrink-0 flex items-center justify-center font-bold">?</span>
+              <span>How Bimbam works</span>
             </button>
           </div>
 

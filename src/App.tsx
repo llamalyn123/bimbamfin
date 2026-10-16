@@ -3,6 +3,7 @@ import { Logo } from './components/Logo';
 import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
+import { HowItWorks } from './components/HowItWorks';
 import { BottomNav } from './components/BottomNav';
 import { AuthModal } from './components/AuthModal';
 import { LoginScreen } from './screens/LoginScreen';
@@ -68,6 +69,7 @@ const MainLayout: React.FC = () => {
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0 md:ml-20 lg:ml-64">
         {/* Top Header */}
         <Header />
+        <HowItWorks />
 
         {/* Screen Viewport with top offset for fixed header and bottom padding for mobile bar */}
         <main className="flex-1 overflow-y-auto pt-16 pb-20 md:pb-0 flex flex-col min-w-0">

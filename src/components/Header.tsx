@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { HowItWorksButton } from './HowItWorks';
 import { Logo } from './Logo';
 import { useApp } from '../context/AppContext';
 import { SUPPORTED_LANGUAGES } from '../i18n/translations';
@@ -70,6 +71,7 @@ export const Header: React.FC = () => {
 
       {/* Right actions */}
       <div className="flex items-center gap-2 sm:gap-3">
+        <HowItWorksButton />
         {/* Language selector dropdown */}
         <div className="relative">
           <button
