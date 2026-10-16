@@ -3,6 +3,7 @@ import { invokeEdge } from '../lib/edge';
 import { useChatThread } from '../lib/chatThreads';
 import { ChatHistory, RecapCard } from './ChatHistory';
 import { Capy, capyMood } from './Capy';
+import { PolishEnglish } from './PolishEnglish';
 
 type SourceRef = { id: unknown; label: string; name: string };
 type Correction = { student_said: string; correction: string; source_ids: string[] };
@@ -50,7 +51,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
   language,
   sources
 }) => {
-  const [mode, setMode] = useState<'chat' | 'feedback'>('chat');
+  const [mode, setMode] = useState<'chat' | 'feedback' | 'polish'>('chat');
   const thread = useChatThread<Msg>('discuss', noteId, { context: "Discussing this week's course note", language });
   const msgs = thread.messages;
   const setMsgs = thread.setMessages;
@@ -170,8 +171,8 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
           </span>
           Discuss with Capy
         </h2>
-        <div className="flex gap-1" role="tablist">
-          {(['chat', 'feedback'] as const).map((m) => (
+        <div className="flex flex-wrap gap-1" role="tablist">
+          {(['chat', 'feedback', 'polish'] as const).map((m) => (
             <button
               key={m}
               type="button"
@@ -185,7 +186,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
                 mode === m ? 'bg-[#0E0E12] text-white border-[#0E0E12]' : 'bg-white text-[#475569] border-[#C9D1DB]'
               }`}
             >
-              {m === 'chat' ? 'Talk it through' : 'Feedback on my writing'}
+              {m === 'chat' ? 'Talk it through' : m === 'feedback' ? 'Feedback on my ideas' : 'Polish my English'}
             </button>
           ))}
         </div>
@@ -418,6 +419,8 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
             onDelete={(t) => thread.remove(t)}
           />
         </>
+      ) : mode === 'polish' ? (
+        <PolishEnglish noteId={noteId} language={language} />
       ) : (
         <>
           <textarea
