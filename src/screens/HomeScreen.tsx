@@ -220,11 +220,15 @@ export const HomeScreen: React.FC = () => {
 
   // "My events": only things this student added or saved, upcoming, soonest first.
   // Anything with an open registration deadline in the next 7 days goes first.
+  // Each item lives in one list only: things to DO are in Due Soon, things to ATTEND are here.
+  const inDueSoon = new Set(nearDue.map((d) => d.eventId ?? d.key.replace(/^e-/, '')));
   const filteredEvents = events
     .filter(
       (e) =>
         (e.created_by === currentUser?.id || userEventInterests[e.id] || reminders[e.id]) &&
-        new Date(e.event_date).getTime() > Date.now() - 3 * 36e5
+        new Date(e.event_date).getTime() > Date.now() - 3 * 36e5 &&
+        !isDeadlineEvent(e) &&
+        !inDueSoon.has(e.id)
     )
     .sort((a, b) => {
       const urgent = (e: typeof a) =>
@@ -356,6 +360,11 @@ export const HomeScreen: React.FC = () => {
           <div className="lg:col-span-7 flex flex-col gap-5">
             {/* Greeting + Capy's corner in one card (one Capy, not two) */}
             <CapyCorner
+              quizStats={
+                hasProgress && progress
+                  ? `${progress.quizzes_this_week} ${progress.quizzes_this_week === 1 ? 'quiz' : 'quizzes'} this week${progress.avg_score_pct_30d !== null ? ` · avg ${progress.avg_score_pct_30d}%` : ''}`
+                  : 'Take a quiz to start'
+              }
               greeting={
                 <h1 className="font-display-hero text-display-hero text-[#0E0E12] tracking-tight font-bold text-2xl sm:text-4xl">
                   {greetingText}
@@ -435,41 +444,6 @@ export const HomeScreen: React.FC = () => {
                 Paste a change
               </button>
             </div>
-
-            {/* Achievement strip: gold glow only once something is earned */}
-            {hasProgress && progress ? (
-              <section className="relative rounded-xl bg-[#FFFDF5] border border-[#FDE68A] p-4 shadow-[0_4px_20px_rgba(212,169,79,0.16)]">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-[#FEF3C7] border border-[#FCD34D] flex items-center justify-center text-[#D97706] shadow-xs">
-                      <span className="material-symbols-outlined text-[28px]">local_fire_department</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-headline-md text-headline-md text-[#78350F] font-bold tracking-tight">
-                        {progress.week_streak}-week streak
-                      </span>
-                      <span className="font-label-tabular text-label-tabular text-[#92400E]">
-                        {progress.quizzes_this_week} {progress.quizzes_this_week === 1 ? 'quiz' : 'quizzes'} this week
-                        {progress.avg_score_pct_30d !== null ? ` · avg ${progress.avg_score_pct_30d}%` : ''}
-                      </span>
-                    </div>
-                  </div>
-                  {progress.last_quiz && progress.last_quiz.total ? (
-                    <div className="flex flex-col text-right">
-                      <span className="font-label-micro text-label-micro text-[#92400E] font-semibold">Latest quiz</span>
-                      <span className="font-headline-md text-headline-md text-[#78350F] font-bold">
-                        {progress.last_quiz.score} / {progress.last_quiz.total}
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              </section>
-            ) : (
-              <section className="rounded-xl bg-white border border-[#E2E8F0] p-4 flex items-center gap-3">
-                <span className="material-symbols-outlined text-[24px] text-[#94A3B8]">local_fire_department</span>
-                <span className="font-body-sm text-[#64748B]">Take your first quiz to start a streak.</span>
-              </section>
-            )}
 
             {/* Due soon: explicit deadlines + key events only (classes live in the calendar) */}
             <section className="flex flex-col bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs">

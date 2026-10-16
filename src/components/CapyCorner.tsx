@@ -34,7 +34,7 @@ const rel = (iso: string) => {
  * plus "What's next?", the focus timer and Capy's wardrobe.
  * "What's next?" is simple rules, not AI: same inputs, same answer, nothing sent anywhere.
  */
-export const CapyCorner: React.FC<{ greeting?: React.ReactNode; date?: React.ReactNode; quote?: React.ReactNode }> = ({ greeting, date, quote }) => {
+export const CapyCorner: React.FC<{ greeting?: React.ReactNode; date?: React.ReactNode; quote?: React.ReactNode; quizStats?: string }> = ({ greeting, date, quote, quizStats }) => {
   const { deadlines, sources, notes, currentUser, setActiveScreen, setSelectedCourse, setSelectedWeek, showToast } = useApp();
   const worn = useWornOutfit();
   const [showNext, setShowNext] = useState(false);
@@ -126,7 +126,7 @@ export const CapyCorner: React.FC<{ greeting?: React.ReactNode; date?: React.Rea
             {date}
           </div>
           <p className="text-xs text-[#64748B]">
-            🔥 {stats.streak}-day streak · 🍊 × {yuzus()} · {friends.length} friend{friends.length === 1 ? '' : 's'}
+            🔥 {stats.streak}-day study streak{quizStats ? ` · 📝 ${quizStats}` : ''} · 🍊 × {yuzus()}
           </p>
         </div>
       </div>
