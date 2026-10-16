@@ -1,7 +1,9 @@
 import { savedDifficulty } from '../components/QuizBuilder';
 import { Capy } from '../components/Capy';
 import { CapyError } from '../components/CapyStates';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { openFocus } from '../components/FocusTimer';
+import { requestDiscussMode } from '../lib/capyProgress';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { invokeEdge, EdgeError } from '../lib/edge';
@@ -72,7 +74,10 @@ export const NotesDetailView: React.FC = () => {
     setQuiz,
     refreshFromSupabase,
     showToast,
-    logoutUser
+    logoutUser,
+    currentUser,
+    setSelectedCourse,
+    setSelectedWeek
   } = useApp();
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -80,6 +85,31 @@ export const NotesDetailView: React.FC = () => {
   const [isQuizzing, setIsQuizzing] = useState(false);
   const [error, setError] = useState<EdgeError | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
+  // Daily note limit (rolling 24h, same rule as the server). 5 unless the server says otherwise.
+  const NOTE_LIMIT = 5;
+  const [nextSlotAt, setNextSlotAt] = useState<number | null>(null);
+  const [usageTick, setUsageTick] = useState(0);
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    let alive = true;
+    supabase
+      .from('generation_log')
+      .select('created_at')
+      .eq('user_id', currentUser.id)
+      .eq('kind', 'note')
+      .gte('created_at', new Date(Date.now() - 864e5).toISOString())
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (!alive || !data) return;
+        setRemaining(Math.max(0, NOTE_LIMIT - data.length));
+        setNextSlotAt(data.length ? new Date(data[0].created_at).getTime() + 864e5 : null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [currentUser?.id, usageTick]);
+  // Clear old messages when switching to another course/week
+  useEffect(() => setError(null), [selectedCourse, selectedWeek]);
   const [newAddition, setNewAddition] = useState('');
   const [savingAddition, setSavingAddition] = useState(false);
 
@@ -114,6 +144,89 @@ export const NotesDetailView: React.FC = () => {
       /* ignore */
     }
   };
+  const limitHit = remaining === 0 || error?.code === 'RATE_LIMITED';
+  const slotText = nextSlotAt
+    ? nextSlotAt - Date.now() < 36e5
+      ? `in about ${Math.max(1, Math.round((nextSlotAt - Date.now()) / 6e4))} min`
+      : `around ${new Date(nextSlotAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}${new Date(nextSlotAt).getDate() !== new Date().getDate() ? ' tomorrow' : ''}`
+    : 'tomorrow';
+  const otherNote = [...notes]
+    .filter((n) => !(n.course === course && String(n.week) === String(week)))
+    .sort((a, b) => +new Date(b.created_at ?? 0) - +new Date(a.created_at ?? 0))[0];
+
+  /** D: how many notes are left today, as yuzus. */
+  const NoteBudget = () =>
+    remaining === null ? null : (
+      <p className="text-xs text-[#64748B] flex items-center justify-center gap-1.5" aria-label={`${remaining} of ${NOTE_LIMIT} notes left today`}>
+        <span aria-hidden="true">
+          {'🍊'.repeat(Math.min(remaining, NOTE_LIMIT))}
+          {'⚪'.repeat(Math.max(0, NOTE_LIMIT - remaining))}
+        </span>
+        <span>
+          {remaining} of {NOTE_LIMIT} notes left today
+        </span>
+      </p>
+    );
+
+  /** A + B: napping Capy plus useful things to do instead. */
+  const LimitCard = () => (
+    <div className="bg-white rounded-2xl border border-[#C9D1DB] p-8 flex flex-col items-center gap-3 text-center">
+      <Capy size={96} mood="nap" outfit="none" />
+      <h2 className="font-headline-lg text-2xl font-bold text-[#0E0E12]">That's {NOTE_LIMIT} notes today. Capy is recharging 💤</h2>
+      <p className="font-body-md text-[#64748B] max-w-md">
+        Your existing notes are all still here. Your next note slot opens {slotText}.
+      </p>
+      <NoteBudget />
+      <div className="w-full max-w-md flex flex-col gap-2 mt-2 text-left">
+        <p className="text-xs font-bold uppercase tracking-wider text-[#8B5E2F] text-center">Meanwhile, Capy suggests</p>
+        {otherNote && (
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedCourse(otherNote.course);
+              setSelectedWeek(Number(otherNote.week));
+              requestDiscussMode('mirror');
+            }}
+            className="flex items-center gap-3 p-3 rounded-xl border border-[#E2E8F0] hover:border-[#D4A94F] bg-white text-left"
+          >
+            <span className="text-xl">🪞</span>
+            <span className="text-sm">
+              <b>Mirror check {otherNote.course} Week {otherNote.week}</b>
+              <span className="block text-xs text-[#64748B]">Explain it in one sentence and see what you missed.</span>
+            </span>
+          </button>
+        )}
+        {otherNote && (
+          <button
+            type="button"
+            onClick={() => setActiveScreen('quiz')}
+            className="flex items-center gap-3 p-3 rounded-xl border border-[#E2E8F0] hover:border-[#D4A94F] bg-white text-left"
+          >
+            <span className="text-xl">❓</span>
+            <span className="text-sm">
+              <b>Quiz yourself on a note you already have</b>
+              <span className="block text-xs text-[#64748B]">80%+ might bring Capy a new friend 🐥</span>
+            </span>
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => openFocus(`Read ${course} Week ${week} slides`)}
+          className="flex items-center gap-3 p-3 rounded-xl border border-[#E2E8F0] hover:border-[#D4A94F] bg-white text-left"
+        >
+          <span className="text-xl">⏳</span>
+          <span className="text-sm">
+            <b>Read this week's slides with a focus session</b>
+            <span className="block text-xs text-[#64748B]">25 minutes with Capy. The note can wait.</span>
+          </span>
+        </button>
+      </div>
+      <button type="button" disabled className="mt-1 px-6 py-3 rounded-xl bg-slate-200 text-[#64748B] font-bold cursor-not-allowed">
+        Back {slotText === 'tomorrow' ? 'tomorrow' : slotText.replace(/^around /, 'at ')}
+      </button>
+    </div>
+  );
+
   const LevelPicker = () => (
     <div className="flex flex-col items-center gap-1">
       <div className="inline-flex rounded-xl border border-[#C9D1DB] p-0.5 bg-white" role="radiogroup" aria-label="Reading level">
@@ -143,9 +256,14 @@ export const NotesDetailView: React.FC = () => {
     setIsGenerating(false);
     if (err) {
       if (err.code === 'UNAUTHENTICATED') return logoutUser();
+      if (err.code === 'RATE_LIMITED') {
+        setRemaining(0);
+        setUsageTick((x) => x + 1);
+      }
       return setError(err);
     }
     setRemaining(data?.remaining_today ?? null);
+    setUsageTick((x) => x + 1);
     await refreshFromSupabase();
     showToast('Master note ready');
     setJustMade(true);
@@ -198,7 +316,7 @@ export const NotesDetailView: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* MAIN: the note */}
         <main className="xl:col-span-8 flex flex-col gap-4 min-w-0">
-          {error && (
+          {error && !(error.code === 'RATE_LIMITED' && !content) && (
             <div className="flex flex-col gap-2">
               <CapyError message={error.message} code={error.code} />
               {error.skipped && error.skipped.length > 0 && (
@@ -222,6 +340,8 @@ export const NotesDetailView: React.FC = () => {
               <p className="font-headline-sm font-bold text-[#0E0E12]">Capy is reading your slides…</p>
               <p className="text-xs text-[#64748B]">Building your master note and linking every point to its source. This can take up to a minute.</p>
             </div>
+          ) : !content && limitHit && weekSources.length > 0 ? (
+            <LimitCard />
           ) : !content ? (
             <div className="bg-white rounded-2xl border border-[#C9D1DB] p-10 flex flex-col items-center gap-3 text-center">
               <span className="material-symbols-outlined text-[40px] text-[#D97706]">auto_stories</span>
@@ -249,7 +369,7 @@ export const NotesDetailView: React.FC = () => {
                   Add a source
                 </button>
               )}
-              {remaining !== null && <p className="text-xs text-[#64748B]">{remaining} generations left today</p>}
+              {weekSources.length > 0 && <NoteBudget />}
             </div>
           ) : (
             <>
@@ -374,12 +494,12 @@ export const NotesDetailView: React.FC = () => {
               <button
                 type="button"
                 onClick={generate}
-                disabled={isGenerating}
+                disabled={isGenerating || limitHit}
                 className="w-full px-4 py-2 rounded-xl bg-white border border-[#C9D1DB] text-sm font-semibold text-[#0E0E12] hover:bg-slate-50 disabled:opacity-60"
               >
-                {isGenerating ? 'Rewriting your note…' : 'Regenerate note'}
+                {isGenerating ? 'Rewriting your note…' : limitHit ? `Regenerate: back ${slotText}` : 'Regenerate note'}
               </button>
-              {remaining !== null && <p className="text-xs text-[#64748B] text-center">{remaining} generations left today</p>}
+              <NoteBudget />
             </div>
           )}
 
