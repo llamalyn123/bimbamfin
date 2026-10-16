@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
+import { isImageFile, photoToJpeg } from '../lib/image';
 
 type Kind = 'source' | 'case';
 type Staged = { id: string; file: File; kind: Kind; week: string; status: 'ready' | 'uploading' | 'done' | 'error'; error?: string };
 
-const ACCEPT = '.pdf,.pptx,.docx,.png,.jpg,.jpeg,.webp,.txt,.md,.csv';
-const OK_TYPES = /\.(pdf|pptx|docx|png|jpe?g|webp|txt|md|csv)$/i;
+const ACCEPT = '.pdf,.pptx,.docx,image/*,.heic,.heif,.txt,.md,.csv';
+const OK_TYPES = /\.(pdf|pptx|docx|txt|md|csv)$/i;
 
 const guessWeek = (name: string) => name.match(/\b(?:week|wk|w)[\s_-]*0?(\d{1,2})\b/i)?.[1] ?? '';
 const guessKind = (name: string): Kind => (/\bcase\b|case[\s_-]?study/i.test(name) ? 'case' : 'source');
@@ -44,12 +45,31 @@ export const UploadMaterialsModal: React.FC<{
 
   const courseOptions = Array.from(new Set(sources.map((s) => s.course).filter(Boolean))).sort();
 
-  const addFiles = (list: FileList | File[] | null) => {
+  const addFiles = async (list: FileList | File[] | null) => {
     if (!list) return;
-    const files = Array.from(list);
-    const bad = files.filter((f) => !OK_TYPES.test(f.name));
-    const good = files.filter((f) => OK_TYPES.test(f.name) && f.size <= 20_000_000);
-    if (bad.length) setError(`Skipped ${bad.map((f) => f.name).join(', ')}: use PDF, PowerPoint (.pptx), Word (.docx), images or text. Old .ppt/.doc files: save as .pptx/.docx first.`);
+    const problems: string[] = [];
+    const good: File[] = [];
+    for (const f of Array.from(list)) {
+      if (isImageFile(f)) {
+        // Photos (incl. iPhone HEIC) are turned into a small JPEG before upload
+        try {
+          good.push(await photoToJpeg(f));
+        } catch {
+          problems.push(
+            /\.hei[cf]$/i.test(f.name)
+              ? `${f.name}: this browser can't open iPhone HEIC photos. Open Bimbam in Safari, or export the photo as JPG (or take a screenshot of it).`
+              : `${f.name}: couldn't open this image. Try a screenshot of it instead.`
+          );
+        }
+      } else if (!OK_TYPES.test(f.name)) {
+        problems.push(`${f.name}: use PDF, PowerPoint (.pptx), Word (.docx), photos or text. Old .ppt/.doc files: save as .pptx/.docx first.`);
+      } else if (f.size > 20_000_000) {
+        problems.push(`${f.name}: too large (max 20 MB).`);
+      } else {
+        good.push(f);
+      }
+    }
+    setError(problems.length ? `Skipped ${problems.join(' ')}` : null);
     setStaged((prev) => [
       ...prev,
       ...good.map((f) => {
@@ -172,7 +192,7 @@ export const UploadMaterialsModal: React.FC<{
         >
           <span className="material-symbols-outlined text-[28px] text-[#D4A94F]">upload_file</span>
           <span className="text-sm font-semibold text-[#0E0E12]">Drop files here or click to choose (several at once is fine)</span>
-          <span className="text-xs text-[#64748B]">Slides, readings, your notes, case studies · PDF, PowerPoint, Word, images or text · max 20 MB each</span>
+          <span className="text-xs text-[#64748B]">Slides, readings, your notes, case studies · PDF, PowerPoint, Word, photos or text · max 20 MB each</span>
           <input
             type="file"
             multiple
