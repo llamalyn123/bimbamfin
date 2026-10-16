@@ -9,17 +9,44 @@ export type CapyMood = 'happy' | 'thinking' | 'oops' | 'sparkle';
  * When something needs checking (a mistake, or a question the materials don't cover),
  * Capy switches to detective mode: checked deerstalker hat and a magnifying glass.
  */
-export const Capy: React.FC<{ mood?: CapyMood; size?: number; className?: string; title?: string }> = ({
+type CapyProps = {
+  mood?: CapyMood;
+  size?: number;
+  className?: string;
+  title?: string;
+  /** Play the one-off reaction for this mood: hop (happy/sparkle) or hat-drop + pop (detective). */
+  react?: boolean;
+  /** Looking through the material: sways and sweeps the magnifier. */
+  searching?: boolean;
+  /** Wave hello with a paw. */
+  wave?: boolean;
+  /** Blink every few seconds (default on). */
+  blink?: boolean;
+};
+
+/** All motion is CSS (index.css, .capy-*) and switches off for "reduce motion" users. */
+export const Capy: React.FC<CapyProps> = ({
   mood = 'happy',
   size = 36,
   className = '',
-  title
+  title,
+  react = false,
+  searching = false,
+  wave = false,
+  blink = true
 }) => {
   const pid = `capychk${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const detective = mood === 'oops' || mood === 'thinking';
   const label = title ?? (detective ? 'Capy, detective mode' : 'Capy');
+  const motion = [
+    'capy',
+    react && (detective ? 'capy-pop' : 'capy-hop'),
+    searching && 'capy-searching'
+  ]
+    .filter(Boolean)
+    .join(' ');
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label={label} className={`shrink-0 ${className}`}>
+    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label={label} className={`shrink-0 ${motion} ${className}`}>
       <title>{label}</title>
       {/* ears */}
       <ellipse cx="13" cy="17" rx="3.6" ry="3" fill="#7A4F25" />
@@ -29,7 +56,7 @@ export const Capy: React.FC<{ mood?: CapyMood; size?: number; className?: string
 
       {detective ? (
         /* deerstalker hat (generic detective) */
-        <g>
+        <g className="capy-hat">
           <defs>
             <pattern id={pid} width="4" height="4" patternUnits="userSpaceOnUse">
               <rect width="4" height="4" fill="#A08560" />
@@ -68,6 +95,7 @@ export const Capy: React.FC<{ mood?: CapyMood; size?: number; className?: string
       )}
 
       {/* eyes */}
+      <g className={blink ? 'capy-eyes' : undefined}>
       {detective ? (
         <>
           <path d="M13 24 l6 1.2" stroke="#2B1A0B" strokeWidth="1.6" strokeLinecap="round" />
@@ -86,6 +114,7 @@ export const Capy: React.FC<{ mood?: CapyMood; size?: number; className?: string
           <path d="M35 27 h6" stroke="#2B1A0B" strokeWidth="2" strokeLinecap="round" />
         </>
       )}
+      </g>
 
       {/* blush */}
       <ellipse cx="9.5" cy="31" rx="2.4" ry="1.5" fill="#E58C7A" opacity="0.55" />
@@ -93,11 +122,11 @@ export const Capy: React.FC<{ mood?: CapyMood; size?: number; className?: string
 
       {detective ? (
         /* magnifying glass */
-        <g>
+        <g className="capy-lens">
           <rect x="47" y="51" width="4.5" height="12" rx="2.2" fill="#6B4423" transform="rotate(-25 49 57)" />
           <circle cx="53" cy="41" r="9.5" fill="#E0F2FE" fillOpacity="0.85" stroke="#D4A94F" strokeWidth="2.8" />
           <path d="M48.5 37 q1.6 -3.4 5.2 -3.8" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" />
-          <text x="53" y="45.5" textAnchor="middle" fontSize="11" fontWeight="800" fill={mood === 'oops' ? '#B45309' : '#4F46E5'} fontFamily="system-ui, sans-serif">
+          <text className="capy-mark" x="53" y="45.5" textAnchor="middle" fontSize="11" fontWeight="800" fill={mood === 'oops' ? '#B45309' : '#4F46E5'} fontFamily="system-ui, sans-serif">
             {mood === 'oops' ? '!' : '?'}
           </text>
           <ellipse cx="49" cy="55" rx="4" ry="3" fill="#7A4F25" />
@@ -109,6 +138,14 @@ export const Capy: React.FC<{ mood?: CapyMood; size?: number; className?: string
           <ellipse cx="53.2" cy="42" rx="8" ry="10" fill="#E0F2FE" stroke="#D4A94F" strokeWidth="2.6" />
           <path d="M49 37 q1.5 -3.5 5 -4" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" />
           <ellipse cx="53" cy="56" rx="4" ry="3" fill="#7A4F25" />
+        </g>
+      )}
+
+      {wave && (
+        <g className="capy-wave">
+          <rect x="2" y="33" width="6" height="16" rx="3" fill="#9A6A36" />
+          <ellipse cx="5" cy="32.5" rx="4.6" ry="3.9" fill="#7A4F25" />
+          <path d="M3 30.5 v1.6 M5 30 v1.8 M7 30.5 v1.6" stroke="#5C3A1A" strokeWidth="0.8" strokeLinecap="round" />
         </g>
       )}
 

@@ -1,6 +1,7 @@
 import { isDeadlineEvent } from '../lib/eventKinds';
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { Capy } from '../components/Capy';
 import { sourceLabel } from '../lib/labels';
 import { PasteUpdateModal } from '../components/PasteUpdateModal';
 import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
@@ -165,10 +166,14 @@ export const HomeScreen: React.FC = () => {
 
   const relDue = (iso: string) => {
     const h = (new Date(iso).getTime() - Date.now()) / 36e5;
-    if (h < 0) return { text: 'Overdue', cls: 'bg-[#3A1620] text-[#FF6B6B]' };
-    if (h < 24) return { text: h < 1 ? 'Within the hour' : `In ${Math.round(h)} h`, cls: 'bg-[#3A1620] text-[#FF6B6B]' };
+    // Today/tomorrow: solid red. Within 14 days: red tint. Further out: normal colours.
+    const URGENT = 'bg-red-600 text-white';
+    const SOON = 'bg-red-500/15 text-red-600 ring-1 ring-red-500/30';
+    if (h < 0) return { text: 'Overdue', cls: URGENT };
+    if (h < 24) return { text: h < 1 ? 'Within the hour' : `In ${Math.round(h)} h`, cls: URGENT };
     const d = daysUntil(iso);
-    if (d <= 3) return { text: d === 1 ? 'Tomorrow' : `In ${d} days`, cls: 'bg-[#3A2A10] text-[#F2A93B]' };
+    if (d <= 1) return { text: 'Tomorrow', cls: URGENT };
+    if (d <= 14) return { text: `In ${d} days`, cls: SOON };
     return { text: `In ${d} days`, cls: 'bg-[#F1F5F9] text-[#475569]' };
   };
   // Real progress from the get_progress database function
@@ -351,7 +356,12 @@ export const HomeScreen: React.FC = () => {
             <section className="flex flex-col gap-2 bg-white border border-[#E2E8F0] p-6 rounded-xl shadow-xs">
               <div className="flex items-baseline justify-between flex-wrap gap-2">
                 <h1 className="font-display-hero text-display-hero text-[#0E0E12] tracking-tight font-bold text-3xl sm:text-4xl">
-                  {greetingText} <span className="inline-block transform hover:rotate-12 transition-transform select-none">👋</span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="capy-peek inline-flex">
+                      <Capy size={48} mood="happy" wave title="Capy waving hello" />
+                    </span>
+                    <span>{greetingText}</span>
+                  </span>
                 </h1>
                 <span className="font-label-tabular text-label-tabular text-[#B45309] font-medium px-3 py-1 bg-[#FEF3C7] border border-[#FDE68A] rounded-lg">
                   {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
@@ -615,11 +625,22 @@ export const HomeScreen: React.FC = () => {
             {/* Exam countdown: top of the right column, above your events */}
             {examSoon.length > 0 && (
               <section className="flex flex-col gap-3 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-xs" aria-label="Exam countdown">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-[#64748B] font-semibold">Exam countdown</p>
-                  <p className="font-headline-sm text-[#0E0E12] font-bold leading-snug">
-                    {countdownTitle(daysUntil(examSoon[0].due_date))}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <Capy
+                    size={52}
+                    mood={daysUntil(examSoon[0].due_date) <= 14 ? 'thinking' : 'happy'}
+                    react
+                    title={daysUntil(examSoon[0].due_date) <= 14 ? 'Capy in revision mode' : 'Capy, chilling'}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-wider text-[#64748B] font-semibold">Exam countdown</p>
+                    <p className="font-headline-sm text-[#0E0E12] font-bold leading-snug">
+                      {countdownTitle(daysUntil(examSoon[0].due_date))}
+                    </p>
+                    <p className="text-[11px] text-[#8B5E2F] font-semibold mt-0.5">
+                      {daysUntil(examSoon[0].due_date) <= 14 ? 'Capy has the detective hat on. Revision mode 🔍' : 'Capy says: chill pace, steady wins 🍊'}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-[#F1F5F9] border border-[#E2E8F0] text-[#0E0E12] shrink-0">
@@ -689,7 +710,17 @@ export const HomeScreen: React.FC = () => {
                   className="relative rounded-2xl bg-white border border-[#E2E8F0] p-5 flex flex-col gap-3 shadow-xs hover:shadow-md transition-all group"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <span className="inline-block transform -rotate-1 rounded-full bg-[#FEE2E2] text-[#DC2626] border border-[#FECACA] font-headline-sm text-label-micro uppercase tracking-wider px-3 py-0.5 font-bold shadow-2xs">
+                    <span
+                      className={`inline-block transform -rotate-1 rounded-full border font-headline-sm text-label-micro uppercase tracking-wider px-3 py-0.5 font-bold shadow-2xs ${
+                        daysUntil(
+                          ev.registration_deadline && !isRegistered && new Date(ev.registration_deadline).getTime() > Date.now()
+                            ? ev.registration_deadline
+                            : ev.event_date
+                        ) <= 14
+                          ? 'bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]'
+                          : 'bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]'
+                      }`}
+                    >
                       {ev.registration_deadline && !isRegistered && new Date(ev.registration_deadline).getTime() > Date.now()
                         ? `Register by ${new Date(ev.registration_deadline).toLocaleDateString([], { day: 'numeric', month: 'short' })}`
                         : ev.source === 'booking'

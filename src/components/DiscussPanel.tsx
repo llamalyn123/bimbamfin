@@ -59,6 +59,8 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
   const [error, setError] = useState<string | null>(null);
   const [essay, setEssay] = useState('');
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  /** Index of the reply that just arrived (only that Capy reacts, not old ones on reload). */
+  const [freshIdx, setFreshIdx] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,6 +93,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
     setBusy(false);
     if (err || !data) return setError(err?.message ?? 'Something went wrong.');
     setMsgs([...next, { role: 'assistant', content: data.reply, data }]);
+    setFreshIdx(next.length);
   };
 
   /** Clean answers in a row up to message i (no corrections, covered) -> Capy sparkles on a streak. */
@@ -119,7 +122,9 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
     <section className="bg-white rounded-2xl border border-[#C9D1DB] p-5 flex flex-col gap-3" aria-label="Discuss this week">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-headline-sm font-bold text-[#0E0E12] flex items-center gap-2">
-          <Capy size={30} mood="happy" title="Capy" />
+          <span className="capy-peek inline-flex">
+            <Capy size={30} mood="happy" title="Capy" />
+          </span>
           Discuss with Capy
         </h2>
         <div className="flex gap-1" role="tablist">
@@ -154,8 +159,8 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
             {thread.current?.summary && <RecapCard s={thread.current.summary} compact />}
             {thread.loaded && msgs.length === 0 && (
               <div className="text-sm text-[#475569] flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                  <Capy size={56} mood="happy" title="Capy" />
+                <div className="flex items-center gap-3 capy-peek">
+                  <Capy size={60} mood="happy" title="Capy waving hello" wave />
                   <p>
                     <b className="text-[#0E0E12]">Hey, I'm Capy 🪞</b>
                     <br />
@@ -184,7 +189,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
                 </div>
               ) : (
                 <div key={i} className="self-start max-w-[92%] flex gap-2 items-start">
-                  <Capy size={34} mood={capyMood(m.data, streakAt(i))} className="mt-0.5" />
+                  <Capy size={34} mood={capyMood(m.data, streakAt(i))} react={i === freshIdx} className="mt-0.5" />
                   <div className="flex flex-col gap-2 min-w-0">
                   <div className="px-3 py-2 rounded-2xl rounded-tl-md bg-[#F8FAFC] border border-[#E2E8F0] text-sm text-[#1E293B]">
                     <span className="block text-[10px] font-bold text-[#8B5E2F] mb-0.5">Capy</span>
@@ -218,7 +223,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
             )}
             {busy && (
               <p className="text-xs text-[#64748B] flex items-center gap-2">
-                <Capy size={28} mood="thinking" />
+                <Capy size={30} mood="thinking" searching />
                 Capy is checking your material…
               </p>
             )}
@@ -300,7 +305,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
           {feedback && (
             <div className="flex flex-col gap-3 text-sm">
               <div className="flex gap-2 items-start">
-                <Capy size={34} mood={feedback.issues.length === 0 ? 'sparkle' : 'oops'} />
+                <Capy size={34} mood={feedback.issues.length === 0 ? 'sparkle' : 'oops'} react />
                 <p className="text-[#1E293B]">
                   <span className="block text-[10px] font-bold text-[#8B5E2F]">Capy</span>
                   {feedback.summary}
