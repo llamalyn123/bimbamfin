@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { invokeEdge } from '../lib/edge';
 import { useChatThread } from '../lib/chatThreads';
 import { ChatHistory, RecapCard } from './ChatHistory';
+import { Capy, capyMood } from './Capy';
 
 type SourceRef = { id: unknown; label: string; name: string };
 type Correction = { student_said: string; correction: string; source_ids: string[] };
@@ -92,6 +93,18 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
     setMsgs([...next, { role: 'assistant', content: data.reply, data }]);
   };
 
+  /** Clean answers in a row up to message i (no corrections, covered) -> Capy sparkles on a streak. */
+  const streakAt = (i: number) => {
+    let n = 0;
+    for (let j = i; j >= 0; j--) {
+      const d = msgs[j]?.role === 'assistant' ? msgs[j].data : undefined;
+      if (msgs[j]?.role !== 'assistant') continue;
+      if (!d || (d.corrections?.length ?? 0) > 0 || d.not_covered) break;
+      n++;
+    }
+    return n;
+  };
+
   const getFeedback = async () => {
     setBusy(true);
     setError(null);
@@ -105,7 +118,10 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
   return (
     <section className="bg-white rounded-2xl border border-[#C9D1DB] p-5 flex flex-col gap-3" aria-label="Discuss this week">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-headline-sm font-bold text-[#0E0E12]">Discuss this week</h2>
+        <h2 className="font-headline-sm font-bold text-[#0E0E12] flex items-center gap-2">
+          <Capy size={30} mood="happy" title="Capy" />
+          Discuss with Capy
+        </h2>
         <div className="flex gap-1" role="tablist">
           {(['chat', 'feedback'] as const).map((m) => (
             <button
@@ -128,7 +144,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
       </div>
       <p className="text-[11px] text-[#64748B] flex items-center gap-1">
         <span className="material-symbols-outlined text-[13px]">info</span>
-        Checked only against this week's note and your sources. It won't write work for you. Chats are saved to your account.
+        Capy only uses this week's note and your sources, and won't write work for you. Chats are saved to your account.
       </p>
 
       {mode === 'chat' ? (
@@ -138,7 +154,14 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
             {thread.current?.summary && <RecapCard s={thread.current.summary} compact />}
             {thread.loaded && msgs.length === 0 && (
               <div className="text-sm text-[#475569] flex flex-col gap-2">
-                <p>Share your take on this week's ideas and I'll check it against your material.</p>
+                <div className="flex items-center gap-3">
+                  <Capy size={56} mood="happy" title="Capy" />
+                  <p>
+                    <b className="text-[#0E0E12]">Hey, I'm Capy 🪞</b>
+                    <br />
+                    Tell me how you understand this week. I'll reflect back what's spot on and what's a bit blurry. No cap.
+                  </p>
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {['Here’s how I understand the main idea…', 'I think the key difference is…', 'Quiz me with one hard question'].map((s) => (
                     <button
@@ -160,8 +183,11 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
                   {m.content}
                 </div>
               ) : (
-                <div key={i} className="self-start max-w-[90%] flex flex-col gap-2">
-                  <div className="px-3 py-2 rounded-2xl rounded-bl-md bg-[#F8FAFC] border border-[#E2E8F0] text-sm text-[#1E293B]">
+                <div key={i} className="self-start max-w-[92%] flex gap-2 items-start">
+                  <Capy size={34} mood={capyMood(m.data, streakAt(i))} className="mt-0.5" />
+                  <div className="flex flex-col gap-2 min-w-0">
+                  <div className="px-3 py-2 rounded-2xl rounded-tl-md bg-[#F8FAFC] border border-[#E2E8F0] text-sm text-[#1E293B]">
+                    <span className="block text-[10px] font-bold text-[#8B5E2F] mb-0.5">Capy</span>
                     {m.data?.reply}
                     {m.data?.not_covered && (
                       <p className="mt-1 text-xs text-[#92400E] flex items-center gap-1">
@@ -186,10 +212,16 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
                       {m.data.follow_up}
                     </div>
                   )}
+                  </div>
                 </div>
               )
             )}
-            {busy && <p className="text-xs text-[#64748B]">Checking against your material…</p>}
+            {busy && (
+              <p className="text-xs text-[#64748B] flex items-center gap-2">
+                <Capy size={28} mood="thinking" />
+                Capy is checking your material…
+              </p>
+            )}
             <div ref={endRef} />
           </div>
 
@@ -262,12 +294,18 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
             disabled={busy || essay.trim().length < 80}
             className="self-end px-5 py-2 rounded-xl bg-[#D4A94F] hover:bg-[#c7993a] text-[#0E0E12] font-bold disabled:opacity-50"
           >
-            {busy ? 'Reading your writing…' : 'Get feedback'}
+            {busy ? 'Capy is reading your writing…' : 'Get feedback from Capy'}
           </button>
 
           {feedback && (
             <div className="flex flex-col gap-3 text-sm">
-              <p className="text-[#1E293B]">{feedback.summary}</p>
+              <div className="flex gap-2 items-start">
+                <Capy size={34} mood={feedback.issues.length === 0 ? 'sparkle' : 'oops'} />
+                <p className="text-[#1E293B]">
+                  <span className="block text-[10px] font-bold text-[#8B5E2F]">Capy</span>
+                  {feedback.summary}
+                </p>
+              </div>
               {feedback.strengths.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-emerald-700">What works</p>
