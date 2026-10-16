@@ -354,34 +354,31 @@ export const HomeScreen: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* LEFT COLUMN: Academic Focus & Momentum (7 cols) */}
           <div className="lg:col-span-7 flex flex-col gap-5">
-            {/* Academic Briefing Header with dynamic Supabase quote */}
-            <section className="flex flex-col gap-2 bg-white border border-[#E2E8F0] p-6 rounded-xl shadow-xs">
-              <div className="flex items-baseline justify-between flex-wrap gap-2">
-                <h1 className="font-display-hero text-display-hero text-[#0E0E12] tracking-tight font-bold text-3xl sm:text-4xl">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="capy-peek inline-flex">
-                      <Capy size={48} mood="happy" wave title="Capy waving hello" />
-                    </span>
-                    <span>{greetingText}</span>
-                  </span>
+            {/* Greeting + Capy's corner in one card (one Capy, not two) */}
+            <CapyCorner
+              greeting={
+                <h1 className="font-display-hero text-display-hero text-[#0E0E12] tracking-tight font-bold text-2xl sm:text-4xl">
+                  {greetingText}
                 </h1>
+              }
+              date={
                 <span className="font-label-tabular text-label-tabular text-[#B45309] font-medium px-3 py-1 bg-[#FEF3C7] border border-[#FDE68A] rounded-lg">
                   {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
                 </span>
-              </div>
-              {activeQuote && (
-                <p className="font-body-md text-body-md text-[#64748B] italic mt-1">
-                  “{activeQuote.quote_text}”{' '}
-                  <span className="not-italic text-[#94A3B8]">
-                    — {activeQuote.speaker}{activeQuote.source_title ? `, ${activeQuote.source_title}` : ''}
-                  </span>
-                </p>
-              )}
-            </section>
+              }
+              quote={
+                activeQuote && (
+                  <p className="font-body-md text-body-md text-[#64748B] italic -mt-1">
+                    “{activeQuote.quote_text}”{' '}
+                    <span className="not-italic text-[#94A3B8]">
+                      — {activeQuote.speaker}{activeQuote.source_title ? `, ${activeQuote.source_title}` : ''}
+                    </span>
+                  </p>
+                )
+              }
+            />
 
             <HowItWorksNudge />
-
-            <CapyCorner />
 
             {/* Change alerts from calendar syncs */}
             {changeAlerts.length > 0 && (

@@ -34,7 +34,7 @@ const rel = (iso: string) => {
  * plus "What's next?", the focus timer and Capy's wardrobe.
  * "What's next?" is simple rules, not AI: same inputs, same answer, nothing sent anywhere.
  */
-export const CapyCorner: React.FC = () => {
+export const CapyCorner: React.FC<{ greeting?: React.ReactNode; date?: React.ReactNode; quote?: React.ReactNode }> = ({ greeting, date, quote }) => {
   const { deadlines, sources, notes, currentUser, setActiveScreen, setSelectedCourse, setSelectedWeek, showToast } = useApp();
   const worn = useWornOutfit();
   const [showNext, setShowNext] = useState(false);
@@ -108,10 +108,10 @@ export const CapyCorner: React.FC = () => {
   };
 
   return (
-    <section className="bg-white border border-[#E2E8F0] rounded-xl shadow-xs p-4 flex flex-col gap-3" aria-label="Capy's corner">
-      <div className="flex items-center gap-3">
-        <div className="relative flex items-end">
-          <Capy size={64} mood={stats.streak >= 3 ? 'sparkle' : 'happy'} wave />
+    <section className="bg-white border border-[#E2E8F0] rounded-xl shadow-xs p-5 sm:p-6 flex flex-col gap-4" aria-label="Today with Capy">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className="relative flex items-end shrink-0 capy-peek">
+          <Capy size={greeting ? 72 : 64} mood={stats.streak >= 3 ? 'sparkle' : 'happy'} wave />
           {friends.length > 0 && (
             <div className="flex items-end -ml-1 gap-0.5" aria-label={`Capy's friends: ${friends.join(', ')}`}>
               {friends.map((f) => (
@@ -120,13 +120,17 @@ export const CapyCorner: React.FC = () => {
             </div>
           )}
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-[#0E0E12]">Capy's corner</p>
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <div className="flex items-start justify-between gap-2 flex-wrap">
+            {greeting ?? <p className="text-sm font-bold text-[#0E0E12]">Capy's corner</p>}
+            {date}
+          </div>
           <p className="text-xs text-[#64748B]">
             🔥 {stats.streak}-day streak · 🍊 × {yuzus()} · {friends.length} friend{friends.length === 1 ? '' : 's'}
           </p>
         </div>
       </div>
+      {quote}
 
       <div className="grid grid-cols-3 gap-2">
         <button type="button" onClick={() => { setNextIdx(0); setShowNext((v) => !v); }} className="px-2 py-2 rounded-xl bg-[#D4A94F] hover:bg-[#c7993a] text-[#0E0E12] text-xs font-bold">
