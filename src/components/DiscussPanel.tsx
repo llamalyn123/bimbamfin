@@ -74,6 +74,39 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
   }, [noteId]);
 
   const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const toggleSel = (i: number) =>
+    setSelected((prev) => {
+      const n = new Set(prev);
+      n.has(i) ? n.delete(i) : n.add(i);
+      return n;
+    });
+  const stopSelecting = () => {
+    setSelecting(false);
+    setSelected(new Set());
+  };
+  const deleteSelected = async () => {
+    if (!selected.size) return;
+    if (!window.confirm(`Delete ${selected.size} message${selected.size === 1 ? '' : 's'}? This can't be undone.`)) return;
+    const kept = msgs.filter((_, i) => !selected.has(i));
+    setFreshIdx(null);
+    setEditIdx(null);
+    stopSelecting();
+    if (kept.length === 0) await thread.deleteCurrent();
+    else await setMsgs(kept);
+  };
+  const SelBox: React.FC<{ i: number }> = ({ i }) =>
+    selecting ? (
+      <input
+        type="checkbox"
+        checked={selected.has(i)}
+        onChange={() => toggleSel(i)}
+        onClick={(e) => e.stopPropagation()}
+        aria-label={`Select message ${i + 1}`}
+        className="mt-2 w-4 h-4 shrink-0 accent-red-600 cursor-pointer"
+      />
+    ) : null;
   const [editText, setEditText] = useState('');
 
   /** Send a message. With `base`, the chat is first cut back to that point (used by Edit). */
@@ -224,10 +257,15 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
                     </div>
                   </div>
                 ) : (
-                  <div key={i} className="self-end max-w-[85%] flex items-start gap-1 group">
+                  <div
+                    key={i}
+                    className={`self-end max-w-[85%] flex items-start gap-1 group ${selecting && selected.has(i) ? 'opacity-60' : ''}`}
+                    onClick={selecting ? () => toggleSel(i) : undefined}
+                  >
+                    <SelBox i={i} />
                     <button
                       type="button"
-                      disabled={busy}
+                      disabled={busy || selecting}
                       onClick={() => {
                         setEditIdx(i);
                         setEditText(m.content);
@@ -242,7 +280,12 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
                   </div>
                 )
               ) : (
-                <div key={i} className="self-start max-w-[92%] flex gap-2 items-start">
+                <div
+                  key={i}
+                  className={`self-start max-w-[92%] flex gap-2 items-start ${selecting && selected.has(i) ? 'opacity-60' : ''}`}
+                  onClick={selecting ? () => toggleSel(i) : undefined}
+                >
+                  <SelBox i={i} />
                   <Capy size={34} mood={capyMood(m.data, streakAt(i))} react={i === freshIdx} className="mt-0.5" />
                   <div className="flex flex-col gap-2 min-w-0">
                   <div className="px-3 py-2 rounded-2xl rounded-tl-md bg-[#F8FAFC] border border-[#E2E8F0] text-sm text-[#1E293B]">
@@ -284,6 +327,31 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
             <div ref={endRef} />
           </div>
 
+          {selecting && (
+            <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl border border-red-200 bg-red-50 text-sm">
+              <span className="font-semibold text-red-700">{selected.size} selected</span>
+              <button
+                type="button"
+                onClick={() => setSelected(selected.size === msgs.length ? new Set() : new Set(msgs.map((_, i) => i)))}
+                className="text-xs text-[#475569] underline"
+              >
+                {selected.size === msgs.length ? 'Clear' : 'Select all'}
+              </button>
+              <span className="flex-1" />
+              <button type="button" onClick={stopSelecting} className="px-3 py-1 rounded-lg border border-[#C9D1DB] bg-white text-xs font-semibold">
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!selected.size}
+                onClick={deleteSelected}
+                className="px-3 py-1 rounded-lg bg-red-600 text-white text-xs font-bold disabled:opacity-40 flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[14px]">delete</span>
+                Delete
+              </button>
+            </div>
+          )}
           {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
           <div className="flex gap-2 items-end">
             <textarea
@@ -315,21 +383,20 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
               <button type="button" onClick={() => thread.startOver()} className="text-xs text-[#64748B] underline">
                 Start over (saves this chat to history)
               </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  if (window.confirm('Delete this chat? It won’t be saved to history.')) {
+              {!selecting && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
                     setEditIdx(null);
-                    setFreshIdx(null);
-                    thread.deleteCurrent();
-                  }
-                }}
-                className="text-xs text-red-600 font-semibold flex items-center gap-0.5 disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[14px]">delete</span>
-                Delete chat
-              </button>
+                    setSelecting(true);
+                  }}
+                  className="text-xs text-red-600 font-semibold flex items-center gap-0.5 disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[14px]">checklist</span>
+                  Select to delete
+                </button>
+              )}
               {msgs.length >= 2 && (
                 <button
                   type="button"
