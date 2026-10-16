@@ -52,9 +52,9 @@ export const MoreScreen: React.FC = () => {
   const [autoSyncLms, setAutoSyncLms] = useState(true);
   const [isUpdatingUni, setIsUpdatingUni] = useState(false);
 
-  // If university changes to independent, ensure tab reverts away from institutional-only features
+  // Campus facilities is school-email only; Connected accounts is open to everyone
   useEffect(() => {
-    if (!isInstitutional && (activeTab === 'lms' || activeTab === 'facilities')) {
+    if (!isInstitutional && activeTab === 'facilities') {
       setActiveTab('account');
     }
   }, [isInstitutional, activeTab]);
