@@ -73,10 +73,15 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
     setError(null);
   }, [noteId]);
 
-  const send = async (text?: string) => {
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editText, setEditText] = useState('');
+
+  /** Send a message. With `base`, the chat is first cut back to that point (used by Edit). */
+  const send = async (text?: string, base: Msg[] = msgs) => {
     const content = (text ?? input).trim();
     if (!content || busy) return;
-    const next: Msg[] = [...msgs, { role: 'user', content }];
+    const before = base;
+    const next: Msg[] = [...base, { role: 'user', content }];
     setMsgs(next);
     setInput('');
     setBusy(true);
@@ -91,7 +96,12 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
       }))
     });
     setBusy(false);
-    if (err || !data) return setError(err?.message ?? 'Something went wrong.');
+    if (err || !data) {
+      // Don't leave an unanswered message behind: put it back in the box so "Send" retries it cleanly
+      setMsgs(before);
+      setInput(content);
+      return setError(err?.message ?? 'Something went wrong.');
+    }
     setMsgs([...next, { role: 'assistant', content: data.reply, data }]);
     setFreshIdx(next.length);
   };
@@ -184,9 +194,53 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
 
             {msgs.map((m, i) =>
               m.role === 'user' ? (
-                <div key={i} className="self-end max-w-[85%] px-3 py-2 rounded-2xl rounded-br-md bg-[#0E0E12] text-white text-sm whitespace-pre-wrap">
-                  {m.content}
-                </div>
+                editIdx === i ? (
+                  <div key={i} className="self-end w-full max-w-[85%] flex flex-col gap-1.5">
+                    <textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      rows={3}
+                      autoFocus
+                      aria-label="Edit your message"
+                      className="w-full px-3 py-2 rounded-xl border border-[#D4A94F] text-sm focus:outline-none resize-none"
+                    />
+                    <p className="text-[11px] text-[#64748B] text-right">Capy will answer again from here. Later messages are replaced.</p>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={() => setEditIdx(null)} className="px-3 py-1 rounded-lg border border-[#C9D1DB] text-xs font-semibold">
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy || !editText.trim()}
+                        onClick={() => {
+                          const base = msgs.slice(0, i);
+                          setEditIdx(null);
+                          send(editText, base);
+                        }}
+                        className="px-3 py-1 rounded-lg bg-[#D4A94F] text-[#0E0E12] text-xs font-bold disabled:opacity-50"
+                      >
+                        Save &amp; resend
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={i} className="self-end max-w-[85%] flex items-start gap-1 group">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        setEditIdx(i);
+                        setEditText(m.content);
+                      }}
+                      title="Edit message"
+                      aria-label="Edit message"
+                      className="mt-1 p-1 rounded-lg text-[#94A3B8] hover:text-[#0E0E12] opacity-60 group-hover:opacity-100 disabled:opacity-30"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">edit</span>
+                    </button>
+                    <div className="px-3 py-2 rounded-2xl rounded-br-md bg-[#0E0E12] text-white text-sm whitespace-pre-wrap">{m.content}</div>
+                  </div>
+                )
               ) : (
                 <div key={i} className="self-start max-w-[92%] flex gap-2 items-start">
                   <Capy size={34} mood={capyMood(m.data, streakAt(i))} react={i === freshIdx} className="mt-0.5" />
@@ -260,6 +314,21 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
             <div className="flex gap-3 items-center">
               <button type="button" onClick={() => thread.startOver()} className="text-xs text-[#64748B] underline">
                 Start over (saves this chat to history)
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm('Delete this chat? It won’t be saved to history.')) {
+                    setEditIdx(null);
+                    setFreshIdx(null);
+                    thread.deleteCurrent();
+                  }
+                }}
+                className="text-xs text-red-600 font-semibold flex items-center gap-0.5 disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[14px]">delete</span>
+                Delete chat
               </button>
               {msgs.length >= 2 && (
                 <button

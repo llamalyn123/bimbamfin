@@ -148,10 +148,19 @@ export function useChatThread<M extends { role: string; content: string }>(
     [current, load]
   );
 
+  /** Delete the open conversation entirely (not filed to history). */
+  const deleteCurrent = useCallback(async () => {
+    const open = current;
+    setMessagesState([]);
+    setCurrent(null);
+    idRef.current = null;
+    if (open) await supabase.from('chat_threads').delete().eq('id', open.id);
+  }, [current]);
+
   const remove = useCallback(async (thread: ChatThread<M>) => {
     await supabase.from('chat_threads').delete().eq('id', thread.id);
     setHistory((h) => h.filter((t) => t.id !== thread.id));
   }, []);
 
-  return { messages, setMessages, current, history, loaded, summarize, summarizing, startOver, resume, remove, error };
+  return { messages, setMessages, current, history, loaded, summarize, summarizing, startOver, resume, remove, deleteCurrent, error };
 }
