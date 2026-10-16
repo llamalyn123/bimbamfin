@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Capy } from '../components/Capy';
 import { HowItWorksNudge } from '../components/HowItWorks';
+import { CapyCorner } from '../components/CapyCorner';
 import { sourceLabel } from '../lib/labels';
 import { PasteUpdateModal } from '../components/PasteUpdateModal';
 import { ChangeItemModal, EditableItem } from '../components/ChangeItemModal';
@@ -379,6 +380,8 @@ export const HomeScreen: React.FC = () => {
             </section>
 
             <HowItWorksNudge />
+
+            <CapyCorner />
 
             {/* Change alerts from calendar syncs */}
             {changeAlerts.length > 0 && (

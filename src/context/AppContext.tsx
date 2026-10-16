@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { bumpCapyProgress } from '../lib/capyProgress';
 import {
   supabase,
   Deadline,
@@ -734,6 +735,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       showToast(`Couldn't save your score: ${error.message}`);
       return false;
     }
+    bumpCapyProgress(); // a great score may bring Capy a new friend
     return true;
   };
 

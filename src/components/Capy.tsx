@@ -1,6 +1,7 @@
 import React, { useId } from 'react';
+import { Outfit, useWornOutfit } from '../lib/capyProgress';
 
-export type CapyMood = 'happy' | 'thinking' | 'oops' | 'sparkle';
+export type CapyMood = 'happy' | 'thinking' | 'oops' | 'sparkle' | 'study' | 'nap';
 
 /**
  * Capy: Bimbam's study buddy. A chill capybara with a yuzu on its head and a little
@@ -22,6 +23,8 @@ type CapyProps = {
   wave?: boolean;
   /** Blink every few seconds (default on). */
   blink?: boolean;
+  /** What Capy wears. 'auto' (default) = the outfit the student picked in Capy's wardrobe. */
+  outfit?: Outfit | 'auto';
 };
 
 /** All motion is CSS (index.css, .capy-*) and switches off for "reduce motion" users. */
@@ -33,10 +36,16 @@ export const Capy: React.FC<CapyProps> = ({
   react = false,
   searching = false,
   wave = false,
-  blink = true
+  blink = true,
+  outfit = 'auto'
 }) => {
+  const wornOutfit = useWornOutfit();
   const pid = `capychk${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const detective = mood === 'oops' || mood === 'thinking';
+  const studying = mood === 'study';
+  const napping = mood === 'nap';
+  // Outfits only on the everyday look (detective mode keeps its hat)
+  const look: Outfit = detective ? 'none' : outfit === 'auto' ? wornOutfit : outfit;
   const label = title ?? (detective ? 'Capy, detective mode' : 'Capy');
   const motion = [
     'capy',
@@ -71,6 +80,15 @@ export const Capy: React.FC<CapyProps> = ({
           <path d="M10 22 h34" stroke="#5C4A33" strokeWidth="2" strokeLinecap="round" />
           <path d="M24 3.5 q3 -3.2 6 0 M25.5 2.4 l-2 -2 M28.5 2.4 l2 -2" stroke="#5C4A33" strokeWidth="1.4" fill="none" strokeLinecap="round" />
         </g>
+      ) : look === 'gradcap' ? (
+        /* grad cap */
+        <g>
+          <path d="M16 15 v4.5 q11 4.5 22 0 V15" fill="#1F2937" />
+          <path d="M8 12 L27 4.5 L46 12 L27 19.5 Z" fill="#111827" stroke="#374151" strokeWidth="0.8" />
+          <circle cx="27" cy="12" r="1.3" fill="#D4A94F" />
+          <path d="M27 12 L41 14.5 V22" stroke="#D4A94F" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+          <path d="M39.6 22 h2.8 l-0.5 3.5 h-1.8z" fill="#D4A94F" />
+        </g>
       ) : (
         /* yuzu on head */
         <g>
@@ -88,20 +106,38 @@ export const Capy: React.FC<CapyProps> = ({
       {/* mouth */}
       {mood === 'oops' ? (
         <path d="M24 45.5 q4 1.2 7.5 -1.5" stroke="#3E2610" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-      ) : mood === 'thinking' ? (
+      ) : mood === 'thinking' || studying || napping ? (
         <path d="M24 45.5 h6" stroke="#3E2610" strokeWidth="1.6" strokeLinecap="round" />
       ) : (
         <path d="M23 45.5 q4 3 8 0" stroke="#3E2610" strokeWidth="1.6" fill="none" strokeLinecap="round" />
       )}
 
       {/* eyes */}
-      <g className={blink ? 'capy-eyes' : undefined}>
+      <g className={blink && !napping ? 'capy-eyes' : undefined}>
       {detective ? (
         <>
           <path d="M13 24 l6 1.2" stroke="#2B1A0B" strokeWidth="1.6" strokeLinecap="round" />
           <circle cx="16.5" cy="27.5" r="2" fill="#2B1A0B" />
           <circle cx="17.1" cy="26.9" r="0.6" fill="#fff" />
           <path d="M35 27 h6" stroke="#2B1A0B" strokeWidth="2" strokeLinecap="round" />
+        </>
+      ) : look === 'sunglasses' ? (
+        <>
+          <rect x="10.5" y="23.5" width="11" height="7" rx="3" fill="#111827" />
+          <rect x="32.5" y="23.5" width="11" height="7" rx="3" fill="#111827" />
+          <path d="M21.5 26 h11" stroke="#111827" strokeWidth="1.6" />
+          <path d="M12.5 25.5 l3 0" stroke="#fff" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
+          <path d="M34.5 25.5 l3 0" stroke="#fff" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
+        </>
+      ) : napping ? (
+        <>
+          <path d="M13 27 q3 2.6 6 0" stroke="#2B1A0B" strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path d="M35 27 q3 2.6 6 0" stroke="#2B1A0B" strokeWidth="2" fill="none" strokeLinecap="round" />
+        </>
+      ) : studying ? (
+        <>
+          <path d="M14 29 h4.5" stroke="#2B1A0B" strokeWidth="2" strokeLinecap="round" />
+          <path d="M36 29 h4.5" stroke="#2B1A0B" strokeWidth="2" strokeLinecap="round" />
         </>
       ) : mood === 'sparkle' ? (
         <>
@@ -131,6 +167,21 @@ export const Capy: React.FC<CapyProps> = ({
           </text>
           <ellipse cx="49" cy="55" rx="4" ry="3" fill="#7A4F25" />
         </g>
+      ) : studying ? (
+        /* open book */
+        <g>
+          <path d="M14 51 q7 -3 13 0 v10 q-6 -3 -13 0z" fill="#F8FAFC" stroke="#6366F1" strokeWidth="1.4" />
+          <path d="M27 51 q6 -3 13 0 v10 q-7 -3 -13 0z" fill="#EEF2FF" stroke="#6366F1" strokeWidth="1.4" />
+          <path d="M17 54 h7 M17 57 h6 M30 54 h7 M30 57 h6" stroke="#A5B4FC" strokeWidth="0.9" />
+          <ellipse cx="13" cy="57" rx="3.5" ry="2.8" fill="#7A4F25" />
+          <ellipse cx="41" cy="57" rx="3.5" ry="2.8" fill="#7A4F25" />
+        </g>
+      ) : napping ? (
+        <g fill="#6366F1" fontFamily="system-ui, sans-serif" fontWeight="800" className="capy-zzz">
+          <text x="47" y="22" fontSize="8">z</text>
+          <text x="53" y="15" fontSize="10">z</text>
+          <text x="58" y="7" fontSize="7">z</text>
+        </g>
       ) : (
         /* hand mirror */
         <g>
@@ -138,6 +189,20 @@ export const Capy: React.FC<CapyProps> = ({
           <ellipse cx="53.2" cy="42" rx="8" ry="10" fill="#E0F2FE" stroke="#D4A94F" strokeWidth="2.6" />
           <path d="M49 37 q1.5 -3.5 5 -4" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" />
           <ellipse cx="53" cy="56" rx="4" ry="3" fill="#7A4F25" />
+        </g>
+      )}
+
+      {look === 'headband' && (
+        <g>
+          <path d="M5 23 q22 -7 44 0" stroke="#EF4444" strokeWidth="3.2" fill="none" strokeLinecap="round" />
+          <path d="M47 21 l6 -4 M47 22 l7 1" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" />
+        </g>
+      )}
+      {look === 'headphones' && (
+        <g>
+          <path d="M5 26 q22 -30 44 0" stroke="#374151" strokeWidth="3" fill="none" />
+          <rect x="1" y="21" width="7.5" height="12" rx="3.2" fill="#6366F1" stroke="#312E81" strokeWidth="0.8" />
+          <rect x="45.5" y="21" width="7.5" height="12" rx="3.2" fill="#6366F1" stroke="#312E81" strokeWidth="0.8" />
         </g>
       )}
 

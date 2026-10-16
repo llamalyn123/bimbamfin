@@ -4,6 +4,8 @@ import { useChatThread } from '../lib/chatThreads';
 import { ChatHistory, RecapCard } from './ChatHistory';
 import { Capy, capyMood } from './Capy';
 import { PolishEnglish } from './PolishEnglish';
+import { MirrorCheck } from './MirrorCheck';
+import { takeDiscussMode } from '../lib/capyProgress';
 
 type SourceRef = { id: unknown; label: string; name: string };
 type Correction = { student_said: string; correction: string; source_ids: string[] };
@@ -51,7 +53,13 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
   language,
   sources
 }) => {
-  const [mode, setMode] = useState<'chat' | 'feedback' | 'polish'>('chat');
+  const [mode, setMode] = useState<'chat' | 'mirror' | 'feedback' | 'polish'>(() => takeDiscussMode() ?? 'chat');
+  const panelRef = React.useRef<HTMLElement>(null);
+  React.useEffect(() => {
+    // Opened from "What's next? → Mirror check": bring the panel into view
+    if (mode === 'mirror') panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const thread = useChatThread<Msg>('discuss', noteId, { context: "Discussing this week's course note", language });
   const msgs = thread.messages;
   const setMsgs = thread.setMessages;
@@ -163,7 +171,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
   };
 
   return (
-    <section className="bg-white rounded-2xl border border-[#C9D1DB] p-5 flex flex-col gap-3" aria-label="Discuss this week">
+    <section ref={panelRef} className="bg-white rounded-2xl border border-[#C9D1DB] p-5 flex flex-col gap-3" aria-label="Discuss this week">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-headline-sm font-bold text-[#0E0E12] flex items-center gap-2">
           <span className="capy-peek inline-flex">
@@ -172,7 +180,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
           Discuss with Capy
         </h2>
         <div className="flex flex-wrap gap-1" role="tablist">
-          {(['chat', 'feedback', 'polish'] as const).map((m) => (
+          {(['chat', 'mirror', 'feedback', 'polish'] as const).map((m) => (
             <button
               key={m}
               type="button"
@@ -186,7 +194,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
                 mode === m ? 'bg-[#0E0E12] text-white border-[#0E0E12]' : 'bg-white text-[#475569] border-[#C9D1DB]'
               }`}
             >
-              {m === 'chat' ? 'Talk it through' : m === 'feedback' ? 'Feedback on my ideas' : 'Polish my English'}
+              {m === 'chat' ? 'Talk it through' : m === 'mirror' ? 'Mirror check 🪞' : m === 'feedback' ? 'Feedback on my ideas' : 'Polish my English'}
             </button>
           ))}
         </div>
@@ -419,6 +427,8 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
             onDelete={(t) => thread.remove(t)}
           />
         </>
+      ) : mode === 'mirror' ? (
+        <MirrorCheck noteId={noteId} language={language} sources={sources} />
       ) : mode === 'polish' ? (
         <PolishEnglish noteId={noteId} language={language} />
       ) : (

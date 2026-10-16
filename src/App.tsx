@@ -4,6 +4,7 @@ import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { HowItWorks } from './components/HowItWorks';
+import { FocusTimer } from './components/FocusTimer';
 import { BottomNav } from './components/BottomNav';
 import { AuthModal } from './components/AuthModal';
 import { LoginScreen } from './screens/LoginScreen';
@@ -70,6 +71,7 @@ const MainLayout: React.FC = () => {
         {/* Top Header */}
         <Header />
         <HowItWorks />
+        <FocusTimer />
 
         {/* Screen Viewport with top offset for fixed header and bottom padding for mobile bar */}
         <main className="flex-1 overflow-y-auto pt-16 pb-20 md:pb-0 flex flex-col min-w-0">
