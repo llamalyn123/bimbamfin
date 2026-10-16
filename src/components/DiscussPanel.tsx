@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { CapyError } from './CapyStates';
 import { invokeEdge } from '../lib/edge';
 import { useChatThread } from '../lib/chatThreads';
 import { ChatHistory, RecapCard } from './ChatHistory';
@@ -361,7 +362,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
               </button>
             </div>
           )}
-          {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+          {error && <CapyError compact message={error} />}
           <div className="flex gap-2 items-end">
             <textarea
               value={input}
@@ -418,7 +419,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
               )}
             </div>
           )}
-          {thread.error && <p role="alert" className="text-xs text-red-700">{thread.error}</p>}
+          {thread.error && <CapyError compact message={thread.error} />}
           <ChatHistory
             history={thread.history}
             summarizing={thread.summarizing}
@@ -441,7 +442,7 @@ export const DiscussPanel: React.FC<{ noteId: string; language: string; sources:
             aria-label="Your writing"
             className="w-full px-3 py-2 rounded-xl border border-[#C9D1DB] text-sm focus:outline-none focus:border-[#D4A94F]"
           />
-          {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+          {error && <CapyError compact message={error} />}
           <button
             type="button"
             onClick={getFeedback}

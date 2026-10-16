@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CapyError } from './CapyStates';
 import { invokeEdge } from '../lib/edge';
 import { confetti } from '../lib/celebrate';
 import { Capy } from './Capy';
@@ -84,7 +85,7 @@ export const MirrorCheck: React.FC<{ noteId: string; language: string; sources: 
           {busy ? 'Capy is looking…' : tries ? 'Check again' : 'Mirror check'}
         </button>
       </div>
-      {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+      {error && <CapyError compact message={error} />}
 
       {res && r && (
         <div className="flex flex-col gap-3 text-sm">

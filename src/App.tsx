@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { CapyLoading } from './components/CapyStates';
 import { Logo } from './components/Logo';
 import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar } from './components/Sidebar';
@@ -46,10 +47,7 @@ const MainLayout: React.FC = () => {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F4F7FB] text-[#0E0E12] transition-colors">
         <Logo size="h-[105px] w-[105px] mb-5" />
-        <div className="flex items-center gap-2 text-xs font-mono text-[#64748B]">
-          <span className="w-2 h-2 rounded-full bg-[#10B981] animate-ping"></span>
-          <span>Verifying Academic Session...</span>
-        </div>
+        <CapyLoading text="Capy is waking up…" size={64} />
       </div>
     );
   }
