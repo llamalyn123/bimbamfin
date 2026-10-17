@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Capy } from '../components/Capy';
 import { Logo } from '../components/Logo';
+import { PasswordField } from '../components/PasswordField';
 import { useApp } from '../context/AppContext';
 import { supabase, inferUniversity } from '../lib/supabase';
 import { SUPPORTED_LANGUAGES } from '../i18n/translations';
@@ -15,6 +16,20 @@ export const LoginScreen: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  const sendReset = async () => {
+    setErrorMsg(null);
+    const trimmed = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return setErrorMsg('Enter the email you signed up with first.');
+    setIsSubmitting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmed, { redirectTo: window.location.origin });
+    setIsSubmitting(false);
+    if (error && /rate|limit|seconds/i.test(error.message)) return setErrorMsg('Too many reset emails just now. Please wait a minute and try again.');
+    // Same message whether or not the account exists, so emails can't be checked one by one
+    setResetSent(true);
+  };
 
   const previewUni = email.includes('@') ? inferUniversity(email) : null;
 
@@ -245,19 +260,47 @@ export const LoginScreen: React.FC = () => {
                 <label className="text-xs font-semibold text-[#0E0E12]">
                   {t('auth_password_label', 'Password')}
                 </label>
+                {authMode === 'signin' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgot((f) => !f);
+                      setResetSent(false);
+                      setErrorMsg(null);
+                    }}
+                    className="text-[11px] font-semibold text-indigo-700 hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                )}
               </div>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
-                  lock
-                </span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={authMode === 'signup' ? 'Min 6 characters' : 'Enter your password'}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#C9D1DB] text-xs sm:text-sm text-[#0E0E12] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
-                />
-              </div>
+              {forgot && authMode === 'signin' && (
+                <div className="p-3 rounded-xl bg-[#FFFBEB] border border-[#FDE68A] text-xs text-[#78350F] flex flex-col gap-2">
+                  {resetSent ? (
+                    <p role="status">
+                      If an account exists for <b>{email.trim()}</b>, a reset link is on its way. Open it on this device, then choose a new password. Check your spam folder too.
+                    </p>
+                  ) : (
+                    <>
+                      <p>Type your email above, then Capy will send you a link to choose a new password.</p>
+                      <button
+                        type="button"
+                        onClick={sendReset}
+                        disabled={isSubmitting}
+                        className="self-start px-3 py-1.5 rounded-lg bg-[#0E0E12] text-white font-semibold disabled:opacity-60"
+                      >
+                        {isSubmitting ? 'Sending…' : 'Send reset link'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+              <PasswordField
+                value={password}
+                onChange={setPassword}
+                placeholder={authMode === 'signup' ? 'Min 6 characters' : 'Enter your password'}
+                autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+              />
             </div>
 
             <button

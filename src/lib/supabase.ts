@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 export const SUPABASE_URL = 'https://xxlbvcwyicddkjbzbtvu.supabase.co';
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4bGJ2Y3d5aWNkZGtqYnpidHZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NzExNjYsImV4cCI6MjEwNjI0NzE2Nn0.8nQrE1Z2t44697Ox9A-NCyd3AcpTl4FkebXKHnuYyvQ';
 
+// Read before the client consumes the URL: true when the student arrived from a "reset password" email.
+export const openedFromRecoveryLink =
+  typeof window !== 'undefined' && /(^|[#&?])type=recovery(&|$)/.test(window.location.hash + window.location.search);
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export type UniversityAffiliation = 'SMU' | 'NUS' | 'NTU' | 'independent';
