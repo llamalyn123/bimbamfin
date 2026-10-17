@@ -33,26 +33,6 @@ export const LoginScreen: React.FC = () => {
 
   const previewUni = email.includes('@') ? inferUniversity(email) : null;
 
-  const handleGoogleSignIn = async () => {
-    setErrorMsg(null);
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin
-        }
-      });
-      if (error) {
-        setErrorMsg(error.message);
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Google authentication error. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -208,7 +188,7 @@ export const LoginScreen: React.FC = () => {
               </div>
             )}
 
-            {/* Full Name field (required for email sign-up, not needed for Google sign-in) */}
+            {/* Full Name field (required for sign-up) */}
             {authMode === 'signup' && (
               <div className="flex flex-col gap-1.5 text-left animate-in fade-in duration-150">
                 <label className="text-xs font-semibold text-[#0E0E12]">Full name</label>
@@ -323,26 +303,6 @@ export const LoginScreen: React.FC = () => {
               )}
             </button>
 
-            {/* Google OAuth Sign-In Option */}
-            <div className="relative flex items-center justify-center my-0.5">
-              <div className="border-t border-[#C9D1DB] w-full"></div>
-              <span className="bg-white px-2 text-[10px] text-[#64748B] uppercase tracking-wider font-semibold absolute">or</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={isSubmitting || isSyncing}
-              className="w-full py-2.5 rounded-xl border border-[#C9D1DB] hover:bg-slate-50 text-[#0E0E12] font-semibold text-xs transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.03h3.88c2.28-2.1 3.66-5.2 3.66-9.12z"/>
-                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.03c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.27v3.13C3.25 21.3 7.31 24 12 24z"/>
-                <path fill="#FBBC05" d="M5.28 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.57H1.27C.46 8.2 0 10.04 0 12s.46 3.8 1.27 5.43l4.01-3.14z"/>
-                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.27 6.57l4.01 3.14c.95-2.83 3.6-4.96 6.72-4.96z"/>
-              </svg>
-              <span>Continue with Google</span>
-            </button>
           </form>
 
           {/* Institutional Compliance Notice */}
