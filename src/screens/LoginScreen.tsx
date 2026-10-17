@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Capy } from '../components/Capy';
 import { Logo } from '../components/Logo';
 import { PasswordField } from '../components/PasswordField';
+import { takePasswordChangedNotice } from '../components/PasswordRecovery';
 import { useApp } from '../context/AppContext';
 import { supabase, inferUniversity } from '../lib/supabase';
 import { SUPPORTED_LANGUAGES } from '../i18n/translations';
@@ -14,7 +15,9 @@ export const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [infoMsg, setInfoMsg] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(() =>
+    takePasswordChangedNotice() ? 'Password updated. Sign in with your new password.' : null
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [forgot, setForgot] = useState(false);
   const [resetSent, setResetSent] = useState(false);

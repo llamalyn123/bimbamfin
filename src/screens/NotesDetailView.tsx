@@ -7,6 +7,8 @@ import { requestDiscussMode } from '../lib/capyProgress';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { invokeEdge, EdgeError } from '../lib/edge';
+import { runJob, useJob } from '../lib/jobs';
+import { capyAlert, currentScreen } from '../lib/notify';
 import { GoDeeper } from '../components/GoDeeper';
 import { DiscussPanel } from '../components/DiscussPanel';
 
@@ -80,9 +82,7 @@ export const NotesDetailView: React.FC = () => {
     setSelectedWeek
   } = useApp();
 
-  const [isGenerating, setIsGenerating] = useState(false);
   const [justMade, setJustMade] = useState(false);
-  const [isQuizzing, setIsQuizzing] = useState(false);
   const [error, setError] = useState<EdgeError | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
   // Daily note limit (rolling 24h, same rule as the server). 5 unless the server says otherwise.
@@ -115,6 +115,9 @@ export const NotesDetailView: React.FC = () => {
 
   const course = selectedCourse;
   const week = selectedWeek;
+  // Generation runs as a background job: it keeps going if the student leaves this screen
+  const isGenerating = !!useJob(`note:${course}:${week}`);
+  const isQuizzing = !!useJob(`quiz:${course}:${week}`);
 
   const noteRow = notes.find((n) => n.course === course && String(n.week) === String(week)) as any;
   const content = useMemo(() => parseContent(noteRow?.content), [noteRow]);
@@ -250,35 +253,45 @@ export const NotesDetailView: React.FC = () => {
   );
 
   const generate = async () => {
-    setIsGenerating(true);
     setError(null);
-    const { data, error: err } = await invokeEdge('generate-note', { course, week, language, level });
-    setIsGenerating(false);
+    const c = course;
+    const w = week;
+    const { data, error: err } = await runJob({ id: `note:${c}:${w}`, kind: 'note', label: `${c} Week ${w} note` }, () =>
+      invokeEdge('generate-note', { course: c, week: w, language, level })
+    );
     if (err) {
       if (err.code === 'UNAUTHENTICATED') return logoutUser();
       if (err.code === 'RATE_LIMITED') {
         setRemaining(0);
         setUsageTick((x) => x + 1);
       }
+      capyAlert({ title: `Capy couldn't finish your ${c} Week ${w} note`, body: err.message, screen: 'notes-detail', sound: 'oops', mood: 'oops' });
       return setError(err);
     }
     setRemaining(data?.remaining_today ?? null);
     setUsageTick((x) => x + 1);
     await refreshFromSupabase();
-    showToast('Master note ready');
+    capyAlert({ title: `Your ${c} Week ${w} note is ready!`, body: 'Tap to read it, then quiz yourself.', screen: 'notes-detail' });
     setJustMade(true);
     window.setTimeout(() => setJustMade(false), 7000);
   };
 
   const startQuiz = async () => {
     if (!noteRow?.id) return;
-    setIsQuizzing(true);
     setError(null);
-    const { data, error: err } = await invokeEdge('generate-quiz', { note_id: noteRow.id, num_questions: 5, language, difficulty: savedDifficulty(), formats: savedFormats() });
-    setIsQuizzing(false);
-    if (err) return setError(err);
+    const c = course;
+    const w = week;
+    const { data, error: err } = await runJob({ id: `quiz:${c}:${w}`, kind: 'quiz', label: `${c} Week ${w} quiz` }, () =>
+      invokeEdge('generate-quiz', { note_id: noteRow.id, num_questions: 5, language, difficulty: savedDifficulty(), formats: savedFormats() })
+    );
+    if (err) {
+      capyAlert({ title: "Capy couldn't build your quiz", body: err.message, screen: 'notes-detail', sound: 'oops', mood: 'oops' });
+      return setError(err);
+    }
     setQuiz(data.quiz);
-    setActiveScreen('quiz');
+    // Still waiting here? Go straight in. Moved elsewhere? Don't yank them away; Capy tells them instead.
+    if (currentScreen() === 'notes-detail' && !document.hidden) setActiveScreen('quiz');
+    else capyAlert({ title: `Your ${c} Week ${w} quiz is ready!`, body: 'Tap to start.', screen: 'quiz' });
   };
 
   const saveAddition = async () => {

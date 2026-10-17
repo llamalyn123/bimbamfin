@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { invokeEdge } from '../lib/edge';
+import { runJob, useJobOfKind } from '../lib/jobs';
+import { capyAlert, currentScreen } from '../lib/notify';
 
 const COUNTS = [5, 10, 15, 20];
 export type Difficulty = 'easy' | 'medium' | 'hard';
@@ -74,7 +76,9 @@ export const QuizBuilder: React.FC = () => {
       /* ignore */
     }
   };
-  const [busy, setBusy] = useState<string | null>(null);
+  // Quiz building is a background job, so leaving the Quiz tab doesn't lose it
+  const job = useJobOfKind('quiz');
+  const busy = job?.id.startsWith('builder:') ? job.id.slice(8) : job ? 'other' : null;
   const [error, setError] = useState<string | null>(null);
   const [left, setLeft] = useState<number | null>(null);
 
@@ -95,12 +99,16 @@ export const QuizBuilder: React.FC = () => {
 
   const run = async (label: string, body: Record<string, unknown>) => {
     setError(null);
-    setBusy(label);
-    const { data, error: err } = await invokeEdge('generate-quiz', { ...body, language, difficulty, formats });
-    setBusy(null);
-    if (err) return setError(err.message);
+    const { data, error: err } = await runJob({ id: `builder:${label}`, kind: 'quiz', label: 'quiz' }, () =>
+      invokeEdge('generate-quiz', { ...body, language, difficulty, formats })
+    );
+    if (err) {
+      capyAlert({ title: "Capy couldn't build your quiz", body: err.message, screen: 'quiz', sound: 'oops', mood: 'oops' });
+      return setError(err.message);
+    }
     if (typeof data?.remaining_today === 'number') setLeft(data.remaining_today);
     setQuiz(data.quiz);
+    capyAlert({ title: 'Your quiz is ready!', body: 'Tap to start.', screen: 'quiz', always: currentScreen() !== 'quiz' || document.hidden });
   };
 
   const startCourse = () => {

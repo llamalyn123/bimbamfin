@@ -55,6 +55,8 @@ Bimbam deliberately does not write graded work. It explains, questions and gives
 - **Rewards earned only by studying:** outfits (headband, grad cap, headphones, sunglasses) and animal friends for quiz scores of 80% or more. Nothing can be bought.
 - **Friendly limits and errors:** reaching the daily note limit shows when the next slot opens and suggests a mirror check, quiz or focus session instead; AI errors explain what happened in plain words.
 - **"How Bimbam works"** guide for new students, reachable any time from the ? button.
+- **Capy alerts:** note and quiz generation keep running when the student moves to another screen. When the work is ready, or a focus or break session ends, Capy shows a card in the app, plays a short sound (bubble pop, marimba, Capy squeak or chime) and, if the student is in another tab or app, sends a browser notification. Capy movement sounds are optional and off by default.
+- **Safe password reset:** a reset link only allows choosing a new password. The app stays locked until the password is changed, and the student then signs in again with the new password.
 
 **Account & privacy**
 - Institution is derived only from the student's email domain; every table is locked to its owner; data export; PDPA notice.
@@ -212,3 +214,16 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 - When an AI gateway (an OpenAI-compatible reseller such as APIYI) is used, course material passes through that third party on its way to the model. Schools deploying Bimbam should choose a provider whose data terms they accept.
 - Focus sessions, yuzus and the chosen Capy outfit are stored on the student's device, so they don't follow the student to a new browser (notes, quizzes and progress do).
 - The Telegram bot sees only commands in groups (privacy mode) and cannot read a group's history.
+- Alerts while the student is away work only while the Bimbam tab is still open. On iPhone, the browser shows them only once Bimbam is added to the Home Screen. A background tab can delay a focus-timer alert by up to a minute.
+
+## 8. What's Next
+
+These are planned for after the hackathon so the current version stays focused and well tested:
+
+- **Real push notifications:** alerts even when the browser is fully closed, including on iPhone, through web push from the server.
+- **Install as an app:** add Bimbam to the Home Screen with its own icon, full-screen view and offline access to saved notes.
+- **Flashcards with spaced repetition:** turn each week's key terms and past quiz mistakes into flashcards that come back just before the student is likely to forget them.
+- **Canvas / eLearn integration:** pull slides, announcements and due dates straight from the school's learning system instead of uploading them by hand.
+- **Malay and more languages:** add Malay alongside English, Chinese, Tamil and German, and translate the whole interface rather than only the main screens.
+- **Revision reminders on Telegram:** Capy sends a short revision prompt or a three-question quiz in Telegram on the days a student usually studies.
+- **Study groups and shared quizzes:** build a quiz from the group's combined notes, see how the group did on each concept, and challenge each other, while each student's own material stays private unless they choose to share it.

@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { ConnectedCalendars } from '../components/ConnectedCalendars';
 import { CampusFacilities } from '../components/CampusFacilities';
 import { openHowItWorks } from '../components/HowItWorks';
+import { SoundSettings } from '../components/SoundSettings';
 import { UniversityAffiliation } from '../lib/supabase';
 import {
   User,
@@ -223,6 +224,7 @@ export const MoreScreen: React.FC = () => {
 
           {/* Tab Content Panes */}
           <div className="md:col-span-3 space-y-6">
+            {activeTab === 'account' && <SoundSettings />}
             {activeTab === 'account' && (
               <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-xs space-y-6">
                 <div>

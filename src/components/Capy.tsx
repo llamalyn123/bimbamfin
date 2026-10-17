@@ -1,4 +1,5 @@
-import React, { useId } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
+import { playSound } from '../lib/notify';
 import { Outfit, useWornOutfit } from '../lib/capyProgress';
 
 export type CapyMood = 'happy' | 'thinking' | 'oops' | 'sparkle' | 'study' | 'nap';
@@ -40,6 +41,16 @@ export const Capy: React.FC<CapyProps> = ({
   outfit = 'auto'
 }) => {
   const wornOutfit = useWornOutfit();
+  // Optional soft "boop" when Capy reacts or changes mood (off unless switched on in Settings)
+  const firstMood = useRef(true);
+  useEffect(() => {
+    if (firstMood.current) {
+      firstMood.current = false;
+      if (react) playSound('capy');
+      return;
+    }
+    playSound('capy');
+  }, [mood, react]);
   const pid = `capychk${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const detective = mood === 'oops' || mood === 'thinking';
   const studying = mood === 'study';

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Capy } from './Capy';
 import { confetti } from '../lib/celebrate';
 import { dayKey, focusLog, logFocusSession, yuzus } from '../lib/capyProgress';
+import { capyAlert } from '../lib/notify';
 
 /**
  * Capy Focus timer: focus with Capy studying under a lamp, then a short break while Capy naps.
@@ -62,25 +63,6 @@ const mmss = (ms: number) => {
   return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
 };
 
-const chime = () => {
-  try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    [660, 880].forEach((f, i) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, ctx.currentTime + i * 0.25);
-      g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + i * 0.25 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.25 + 0.5);
-      o.connect(g).connect(ctx.destination);
-      o.start(ctx.currentTime + i * 0.25);
-      o.stop(ctx.currentTime + i * 0.25 + 0.55);
-    });
-  } catch {
-    /* no audio: fine */
-  }
-};
-
 const Lamp: React.FC = () => (
   <svg width="46" height="64" viewBox="0 0 46 64" aria-hidden="true">
     <path d="M14 22 L40 64 H-2 Z" fill="#FDE68A" opacity="0.35" />
@@ -132,13 +114,24 @@ export const FocusTimer: React.FC = () => {
     return () => window.clearInterval(id);
   }, [s?.running]);
 
+  // Background tabs tick slowly: check the clock as soon as the student comes back, and at the exact end time
+  useEffect(() => {
+    if (!s?.running) return;
+    const onVis = () => setNow(Date.now());
+    document.addEventListener('visibilitychange', onVis);
+    const t = window.setTimeout(onVis, Math.max(0, s.endsAt - Date.now()) + 50);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.clearTimeout(t);
+    };
+  }, [s?.running, s?.endsAt]);
+
   const left = s ? (s.running ? s.endsAt - now : s.left) : 0;
 
   // Phase finished
   useEffect(() => {
     if (!s?.running || left > 0 || finishing.current) return;
     finishing.current = true;
-    chime();
     if (s.phase === 'focus') {
       const earned = logFocusSession();
       const today = focusLog().filter((t) => dayKey(t) === dayKey(Date.now())).length;
@@ -147,10 +140,13 @@ export const FocusTimer: React.FC = () => {
       const brk = (earned ? 3 : 1) * s.breakMin * 60_000;
       update({ ...s, phase: 'break', running: true, endsAt: Date.now() + brk, left: brk });
       setOpen(true);
+      // Sound + (if they're in another tab/app) a system notification
+      capyAlert({ title: 'Focus time is up! 🎉', body: `Take a ${Math.round(brk / 60_000)}-minute break. Capy is napping too.`, sound: 'focus-done', mood: 'nap' });
     } else {
       setMsg('Break over. Capy is awake and ready when you are 📚');
       update({ ...s, phase: 'focus', running: false, endsAt: 0, left: s.focusMin * 60_000 });
       setOpen(true);
+      capyAlert({ title: 'Break over', body: 'Capy is awake. Ready for another focus round?', sound: 'break-done', mood: 'happy' });
     }
     window.setTimeout(() => (finishing.current = false), 800);
   }, [left, s, update]);
