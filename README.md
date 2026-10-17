@@ -2,8 +2,8 @@
 
 **Bimbam** (பிம்பம்) is Tamil for the image a mirror gives back. Bimbam is a study companion for university students that reflects what they actually understand: it organises their week and turns their own course material into cited notes, discussion, case-study practice and quizzes.
 
-- **Live app:** _add your Vercel URL here_
-- **Demo video:** _add link here_
+- **Live app:**  https://bimbam-app.vercel.app 
+- **Demo video:** https://vimeo.com/1236794612?fl=ip&fe=ec
 - **Track:** Productivity & Workflows
 
 ---
