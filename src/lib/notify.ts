@@ -15,8 +15,9 @@ type Settings = { sound: boolean; capySounds: boolean; tone: Tone };
 const SKEY = 'bimbam_sound_settings';
 const listeners = new Set<() => void>();
 let settings: Settings = (() => {
+  const fix = (x: Settings): Settings => (TONES.some((t) => t.id === x.tone) ? x : { ...x, tone: 'bubble' });
   try {
-    return { sound: true, capySounds: false, tone: 'bubble' as Tone, ...JSON.parse(localStorage.getItem(SKEY) || '{}') };
+    return fix({ sound: true, capySounds: false, tone: 'bubble' as Tone, ...JSON.parse(localStorage.getItem(SKEY) || '{}') });
   } catch {
     return { sound: true, capySounds: false, tone: 'bubble' as Tone };
   }

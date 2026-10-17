@@ -131,13 +131,13 @@ export const AuthModal: React.FC = () => {
 
             <div className="p-4 rounded-xl bg-slate-50 border border-[#C9D1DB] text-left text-xs text-[#64748B] flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <span>Supabase Sync:</span>
-                <span className="font-bold text-emerald-700">{t('verified_sync', 'Online & Verified (profiles table synced)')}</span>
+                <span>Your account:</span>
+                <span className="font-bold text-emerald-700">Saved securely</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>LMS Auto-Polling:</span>
+                <span>Course materials:</span>
                 <span className="font-bold text-[#0E0E12]">
-                  {currentUni === 'independent' ? t('notes_manual_desc', 'Disabled (Manual notes upload)') : `${currentUni} Canvas Connector Active`}
+                  {currentUni === 'independent' ? 'You upload them' : 'You upload them (Canvas sync coming soon)'}
                 </span>
               </div>
             </div>
